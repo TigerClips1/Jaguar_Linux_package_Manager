@@ -1,11 +1,11 @@
-# apk-tools
+# ps4
 
-Alpine Package Keeper (apk) is a package manager originally built for Alpine Linux,
+Playstation 4 pacakge manger (ps4) is a package manager originally built for jaguarlinux,
 but now used by several other distributions as well.
 
 ## Building
 
-The preferred build system for building apk-tools is Meson:
+The preferred build system for building ps4 is Meson:
 
 ```
 # meson setup -Dprefix=/ build
@@ -22,7 +22,7 @@ To build a static apk, pass the right arguments to the above commands:
 # ninja -C build src/apk
 ```
 
-Which will give you a `./build/src/apk` that is statically linked.
+Which will give you a `./build/src/ps4` that is statically linked.
 
 While there is a legacy Makefile-based system available, it only works for musl-linux
 targets, and will be dropped in the apk-tools 3.0 release.
@@ -31,5 +31,5 @@ targets, and will be dropped in the apk-tools 3.0 release.
 
 Online documentation is available in the [doc/](doc/) directory in the form of man pages.
 
-The [apk(8)](doc/apk.8.scd) man page provides a basic overview of the package management
+The [apk(8)](doc/ps4.8.scd) man page provides a basic overview of the package management
 system.
