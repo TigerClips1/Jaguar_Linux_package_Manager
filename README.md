@@ -1,7 +1,6 @@
 # ps4
 
-Playstation 4 pacakge manger (ps4) is a package manager originally built for jaguarlinux,
-but now used by several other distributions as well.
+Playstation 4 pacakge manger (ps4) is a package manager  built for jaguarlinux or any other linux distro ,
 
 ## Building
 
