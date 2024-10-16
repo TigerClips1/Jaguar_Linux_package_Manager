@@ -1,9 +1,9 @@
 ##
-# Building apk-tools
+# Building ps4-tools
 
 -include config.mk
 
-PACKAGE := apk-tools
+PACKAGE := ps4-tools
 VERSION := $(shell ./get-version.sh "$(FULL_VERSION)" "$(VERSION)")
 
 export PACKAGE VERSION
@@ -14,9 +14,9 @@ export PACKAGE VERSION
 DESTDIR		:=
 SBINDIR		:= /sbin
 LIBDIR		:= /lib
-CONFDIR		:= /etc/apk
+CONFDIR		:= /etc/ps4
 MANDIR		:= /usr/share/man
-DOCDIR		:= /usr/share/doc/apk
+DOCDIR		:= /usr/share/doc/ps4
 INCLUDEDIR	:= /usr/include
 PKGCONFIGDIR	:= /usr/lib/pkgconfig
 
@@ -48,7 +48,7 @@ static:
 
 tag: check
 	TAG_VERSION=$$(cat VERSION); \
-	git commit . -m "apk-tools-$${TAG_VERSION}"; \
-	git tag -s v$${TAG_VERSION} -m "apk-tools-$${TAG_VERSION}"
+	git commit . -m "ps4-tools-$${TAG_VERSION}"; \
+	git tag -s v$${TAG_VERSION} -m "ps4-tools-$${TAG_VERSION}"
 
 src/: libfetch/

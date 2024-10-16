@@ -19,10 +19,10 @@ httperr_h = custom_target(
 libfetch_src += [httperr_h]
 
 libfetch_cargs = [
-	'-DCA_CERT_FILE="/' + apk_confdir / 'ca.pem"',
-	'-DCA_CRL_FILE="/' + apk_confdir / 'crl.pem"',
-	'-DCLIENT_CERT_FILE="/' + apk_confdir / 'cert.pem"',
-	'-DCLIENT_KEY_FILE="/' + apk_confdir / 'cert.key"',
+	'-DCA_CERT_FILE="/' + ps4_confdir / 'ca.pem"',
+	'-DCA_CRL_FILE="/' + ps4_confdir / 'crl.pem"',
+	'-DCLIENT_CERT_FILE="/' + ps4_confdir / 'cert.pem"',
+	'-DCLIENT_KEY_FILE="/' + ps4_confdir / 'cert.key"',
 ]
 
 libfetch = static_library(

@@ -1,5 +1,5 @@
 project(
-	'apk-tools',
+	'ps4-tools',
 	['c'],
 	default_options : ['c_std=gnu11', 'optimization=2', 'warning_level=1'],
 	version: run_command('./get-version.sh', check: true).stdout().strip(),
@@ -7,8 +7,8 @@ project(
 )
 pkgc = import('pkgconfig')
 
-apk_confdir = get_option('sysconfdir') / 'apk'
-apk_libdir = get_option('libdir')
+ps4_confdir = get_option('sysconfdir') / 'ps4'
+ps4_libdir = get_option('libdir')
 
 lua_bin = find_program('lua' + get_option('lua_version'), required: get_option('help'))
 lua_dep = dependency('lua' + get_option('lua_version'), required: get_option('lua'))
@@ -22,7 +22,7 @@ elif get_option('crypto_backend') == 'mbedtls'
 	crypto_dep = [ dependency('mbedtls'), dependency('mbedcrypto') ]
 endif
 
-apk_deps = [ crypto_dep, zlib_dep, libzstd_dep ]
+ps4_deps = [ crypto_dep, zlib_dep, libzstd_dep ]
 
 add_project_arguments('-D_GNU_SOURCE', language: 'c')
 

@@ -1,7 +1,7 @@
 build/
-src/apk
-src/apk-test
-src/apk.static
+src/ps4
+src/ps4-test
+src/ps4.static
 src/help.h
 test/*.got
 test/repos.out

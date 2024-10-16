@@ -24,7 +24,7 @@ esac
 
 # Keep in mind that CC, CXX etc. are the binaries to compile from host
 # to target, not from host to host!
-cat > apk.cross <<EOF
+cat > ps4.cross <<EOF
 [binaries]
 c = '${CC}'
 cpp = '${CXX}'
@@ -48,4 +48,4 @@ cpu = '${_target_cpu}'
 endian = '${_target_endianess}'
 EOF
 
-echo "Generating crossfile is done. You can invoke meson with the cross file with 'meson --cross apk.cross' now."
+echo "Generating crossfile is done. You can invoke meson with the cross file with 'meson --cross ps4.cross' now."

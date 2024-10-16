@@ -33,4 +33,3 @@ system.
 
 
 The main reason why i built this package manager is to make my distro unqiue and the reson why i fork the apk packagemangaer becuse it's easy and have alot of commands argment you can do i want to keep on maintaining the this package manger i want my distro to be kinda unique and i am just doing this project for fun  donateing can be optinal but will help out 
-
