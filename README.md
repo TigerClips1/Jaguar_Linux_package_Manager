@@ -14,11 +14,11 @@ The preferred build system for building ps4 is Meson:
 
 For bootstrapping without Python, muon is also compatible. All you have to do is replace `meson` with `muon` in the above example.
 
-To build a static apk, pass the right arguments to the above commands:
+To build a static ps4, pass the right arguments to the above commands:
 
 ```
 # meson setup -Dc_link_args="-static" -Dprefer_static=true -Ddefault_library=static build
-# ninja -C build src/apk
+# ninja -C build src/ps4
 ```
 
 Which will give you a `./build/src/ps4` that is statically linked.
