@@ -22,9 +22,7 @@ To build a static ps4, pass the right arguments to the above commands:
 ```
 
 Which will give you a `./build/src/ps4` that is statically linked.
-
-While there is a legacy Makefile-based system available, it only works for musl-linux
-targets, and will be dropped in the apk-tools 3.0 release.
+or you can build using a make file 
 
 ## Documentation
 
