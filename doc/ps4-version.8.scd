@@ -1,23 +1,23 @@
-apk-version(8)
+ps4-version(8)
 
 # NAME
 
-apk version - compare package versions
+ps4 version - compare package versions
 
 # SYNOPSIS
 
-*apk version* [<_options_>...] [_packages_...]
+*ps4 version* [<_options_>...] [_packages_...]
 
-*apk version* -c _versions_...
+*ps4 version* -c _versions_...
 
-*apk version* -t _version1_ _version2_
+*ps4 version* -t _version1_ _version2_
 
-*apk version* -I
+*ps4 version* -I
 
 # DESCRIPTION
 
-*apk version* compares the versions of installed packages against package
-versions available from repositories (see *apk-repositories*(5)). It can also
+*ps4 version* compares the versions of installed packages against package
+versions available from repositories (see *ps4-repositories*(5)). It can also
 be used to validate and compare version strings.
 
 In default mode, if no packages are specified, all installed packages are
@@ -43,7 +43,7 @@ specified).
 
 *-I, --indexes*
 	Print the version and description for each repository's index. See
-	*apk-repositories*(5) for more information.
+	*ps4-repositories*(5) for more information.
 
 *-l, --limit* _operand_
 	Limit to packages with output matching given _operand_. The _operand_

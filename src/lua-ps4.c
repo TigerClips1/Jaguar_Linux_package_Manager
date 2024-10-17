@@ -1,4 +1,4 @@
-/* src/lua-apk.c - Alpine Package Keeper (APK)
+/* src/lua-ps4.c - PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -11,14 +11,14 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "apk_blob.h"
-#include "apk_database.h"
-#include "apk_defines.h"
-#include "apk_version.h"
+#include "ps4_blob.h"
+#include "ps4_database.h"
+#include "ps4_defines.h"
+#include "ps4_version.h"
 
-#define LIBNAME "apk"
-#define APK_DB_META "apk_database"
-#define APK_IPKG_META "apk_installed_package"
+#define LIBNAME "ps4"
+#define PS4_DB_META "ps4_database"
+#define PS4_IPKG_META "ps4_installed_package"
 
 #if LUA_VERSION_NUM < 502
 # define luaL_newlib(L,l) (lua_newtable(L), luaL_register(L,NULL,l))
@@ -30,21 +30,21 @@ struct flagmap {
 };
 
 struct flagmap opendb_flagmap[] = {
-	{"read",                APK_OPENF_READ},
-	{"write",               APK_OPENF_WRITE},
-	{"create",              APK_OPENF_CREATE},
-	{"no_installed",        APK_OPENF_NO_INSTALLED},
-	{"no_scripts",          APK_OPENF_NO_SCRIPTS},
-	{"no_world",            APK_OPENF_NO_WORLD},
-	{"no_sys_repos",        APK_OPENF_NO_SYS_REPOS},
-	{"no_installed_repo",   APK_OPENF_NO_INSTALLED_REPO},
-	{"cache_write",         APK_OPENF_CACHE_WRITE},
-	{"no_autoupdate",       APK_OPENF_NO_AUTOUPDATE},
-	{"no_cmdline_repos",    APK_OPENF_NO_CMDLINE_REPOS},
-	{"usermode",            APK_OPENF_USERMODE},
-	{"allow_arch",          APK_OPENF_ALLOW_ARCH},
-	{"no_repos",            APK_OPENF_NO_REPOS},
-	{"no_state",            APK_OPENF_NO_STATE},
+	{"read",                PS4_OPENF_READ},
+	{"write",               PS4_OPENF_WRITE},
+	{"create",              PS4_OPENF_CREATE},
+	{"no_installed",        PS4_OPENF_NO_INSTALLED},
+	{"no_scripts",          PS4_OPENF_NO_SCRIPTS},
+	{"no_world",            PS4_OPENF_NO_WORLD},
+	{"no_sys_repos",        PS4_OPENF_NO_SYS_REPOS},
+	{"no_installed_repo",   PS4_OPENF_NO_INSTALLED_REPO},
+	{"cache_write",         PS4_OPENF_CACHE_WRITE},
+	{"no_autoupdate",       PS4_OPENF_NO_AUTOUPDATE},
+	{"no_cmdline_repos",    PS4_OPENF_NO_CMDLINE_REPOS},
+	{"usermode",            PS4_OPENF_USERMODE},
+	{"allow_arch",          PS4_OPENF_ALLOW_ARCH},
+	{"no_repos",            PS4_OPENF_NO_REPOS},
+	{"no_state",            PS4_OPENF_NO_STATE},
 	{NULL, 0}
 };
 
@@ -57,9 +57,9 @@ static int typerror (lua_State *L, int narg, const char *tname) {
 	return luaL_argerror(L, narg, msg);
 }
 
-static apk_blob_t check_blob(lua_State *L, int index)
+static ps4_blob_t check_blob(lua_State *L, int index)
 {
-	apk_blob_t blob;
+	ps4_blob_t blob;
 	size_t len;
 	blob.ptr = (char *)luaL_checklstring(L, index, &len);
 	blob.len = len;
@@ -70,8 +70,8 @@ static apk_blob_t check_blob(lua_State *L, int index)
 /* returns boolean */
 static int Pversion_validate(lua_State *L)
 {
-	apk_blob_t ver = check_blob(L, 1);
-	lua_pushboolean(L, apk_version_validate(ver));
+	ps4_blob_t ver = check_blob(L, 1);
+	lua_pushboolean(L, ps4_version_validate(ver));
 	return 1;
 }
 
@@ -80,10 +80,10 @@ static int Pversion_validate(lua_State *L)
 */
 static int Pversion_compare(lua_State *L)
 {
-	apk_blob_t a, b;
+	ps4_blob_t a, b;
 	a = check_blob(L, 1);
 	b = check_blob(L, 2);
-	lua_pushstring(L, apk_version_op_string(apk_version_compare(a, b)));
+	lua_pushstring(L, ps4_version_op_string(ps4_version_compare(a, b)));
 	return 1;
 }
 
@@ -92,10 +92,10 @@ static int Pversion_compare(lua_State *L)
 */
 static int Pversion_is_less(lua_State *L)
 {
-	apk_blob_t a, b;
+	ps4_blob_t a, b;
 	a = check_blob(L, 1);
 	b = check_blob(L, 2);
-	lua_pushboolean(L, apk_version_match(a, APK_VERSION_LESS, b));
+	lua_pushboolean(L, ps4_version_match(a, PS4_VERSION_LESS, b));
 	return 1;
 }
 
@@ -120,7 +120,7 @@ static void set_string_field(lua_State *L, int index, const char *key,
 }
 
 static void set_blob_field(lua_State *L, int index, const char *key,
-			   const apk_blob_t value)
+			   const ps4_blob_t value)
 {
 	lua_pushstring(L, key);
 	lua_pushlstring(L, value.ptr, value.len);
@@ -152,7 +152,7 @@ static int get_boolean_field(lua_State *L, int index, const char *key)
 	return value;
 }
 
-static int get_ctx(lua_State *L, int i, struct apk_ctx *o)
+static int get_ctx(lua_State *L, int i, struct ps4_ctx *o)
 {
 	struct flagmap *f;
 	o->arch = (char *)get_opt_string_field(L, i, "arch", NULL);
@@ -166,51 +166,51 @@ static int get_ctx(lua_State *L, int i, struct apk_ctx *o)
 	return 0;
 }
 
-static struct apk_database *checkdb(lua_State *L, int index)
+static struct ps4_database *checkdb(lua_State *L, int index)
 {
-	struct apk_database *db;
+	struct ps4_database *db;
 	luaL_checktype(L, index, LUA_TUSERDATA);
-	db = (struct apk_database  *) luaL_checkudata(L, index, APK_DB_META);
+	db = (struct ps4_database  *) luaL_checkudata(L, index, PS4_DB_META);
 	if (db == NULL)
-		typerror(L, index, APK_DB_META);
+		typerror(L, index, PS4_DB_META);
 	return db;
 }
 
-static int Papk_db_open(lua_State *L)
+static int Pps4_db_open(lua_State *L)
 {
-	struct apk_ctx *ac;
-	struct apk_database *db;
+	struct ps4_ctx *ac;
+	struct ps4_database *db;
 	int r;
 
-	ac = lua_newuserdata(L, sizeof(struct apk_ctx));
-	apk_ctx_init(ac);
+	ac = lua_newuserdata(L, sizeof(struct ps4_ctx));
+	ps4_ctx_init(ac);
 	if (lua_istable(L, 1))
 		get_ctx(L, 1, ac);
 	else
-		ac->open_flags |= APK_OPENF_READ;
+		ac->open_flags |= PS4_OPENF_READ;
 
-	apk_ctx_prepare(ac);
-	db = lua_newuserdata(L, sizeof(struct apk_database));
-	luaL_getmetatable(L, APK_DB_META);
+	ps4_ctx_prepare(ac);
+	db = lua_newuserdata(L, sizeof(struct ps4_database));
+	luaL_getmetatable(L, PS4_DB_META);
 	lua_setmetatable(L, -2);
 
-	apk_db_init(db);
-	r = apk_db_open(db, ac);
+	ps4_db_init(db);
+	r = ps4_db_open(db, ac);
 	if (r != 0)
-		luaL_error(L, "apk_db_open() failed");
+		luaL_error(L, "ps4_db_open() failed");
 	return 1;
 }
 
-static int Papk_db_close(lua_State *L)
+static int Pps4_db_close(lua_State *L)
 {
-	struct apk_database *db = checkdb(L, 1);
-	apk_db_close(db);
-	apk_ctx_free(db->ctx);
+	struct ps4_database *db = checkdb(L, 1);
+	ps4_db_close(db);
+	ps4_ctx_free(db->ctx);
 	return 0;
 }
 
 
-static int push_package(lua_State *L, struct apk_package *pkg)
+static int push_package(lua_State *L, struct ps4_package *pkg)
 {
 	if (pkg == NULL) {
 		lua_pushnil(L);
@@ -231,31 +231,31 @@ static int push_package(lua_State *L, struct apk_package *pkg)
 	return 1;
 }
 
-static int Papk_who_owns(lua_State *L)
+static int Pps4_who_owns(lua_State *L)
 {
-	struct apk_database *db = checkdb(L, 1);
+	struct ps4_database *db = checkdb(L, 1);
 	const char *path = luaL_checkstring(L, 2);
-	struct apk_package *pkg = apk_db_get_file_owner(db, APK_BLOB_STR(path));
+	struct ps4_package *pkg = ps4_db_get_file_owner(db, PS4_BLOB_STR(path));
 	return push_package(L, pkg);
 }
 
-static int Papk_exists(lua_State *L)
+static int Pps4_exists(lua_State *L)
 {
-	struct apk_database *db = checkdb(L, 1);
+	struct ps4_database *db = checkdb(L, 1);
 	const char *depstr = luaL_checkstring(L, 2);
-	struct apk_dependency dep;
-	struct apk_package *pkg;
-	apk_blob_t blob = APK_BLOB_STR(depstr);
-	apk_blob_pull_dep(&blob, db, &dep);
+	struct ps4_dependency dep;
+	struct ps4_package *pkg;
+	ps4_blob_t blob = PS4_BLOB_STR(depstr);
+	ps4_blob_pull_dep(&blob, db, &dep);
 
-	if (APK_BLOB_IS_NULL(blob) || blob.len > 0)
+	if (PS4_BLOB_IS_NULL(blob) || blob.len > 0)
 		goto ret_nil;
 
-	pkg = apk_pkg_get_installed(dep.name);
+	pkg = ps4_pkg_get_installed(dep.name);
 	if (pkg == NULL)
 		goto ret_nil;
 
-	if (apk_dep_analyze(NULL, &dep, pkg) & APK_DEP_SATISFIES)
+	if (ps4_dep_analyze(NULL, &dep, pkg) & PS4_DEP_SATISFIES)
 		return push_package(L, pkg);
 
 ret_nil:
@@ -264,16 +264,16 @@ ret_nil:
 }
 
 // Iterator of all installed packages
-struct apk_installed_package_iterator {
+struct ps4_installed_package_iterator {
 	struct list_head *end;
-	struct apk_installed_package *node;
+	struct ps4_installed_package *node;
 };
 
 static int iterate_installed(lua_State *L)
 {
-	struct apk_installed_package_iterator *i;
-	struct apk_installed_package *ipkg;
-	i = (struct apk_installed_package_iterator *)lua_touserdata(L, lua_upvalueindex(1));
+	struct ps4_installed_package_iterator *i;
+	struct ps4_installed_package *ipkg;
+	i = (struct ps4_installed_package_iterator *)lua_touserdata(L, lua_upvalueindex(1));
 	ipkg = i->node;
 
 	if (&ipkg->installed_pkgs_list == i->end)
@@ -286,51 +286,51 @@ static int iterate_installed(lua_State *L)
 }
 static int Pinstalled(lua_State *L)
 {
-	struct apk_database *db = checkdb(L, 1);
-	struct apk_installed_package_iterator *i;
+	struct ps4_database *db = checkdb(L, 1);
+	struct ps4_installed_package_iterator *i;
 
-	i = (struct apk_installed_package_iterator *) lua_newuserdata(L, sizeof(*i));
+	i = (struct ps4_installed_package_iterator *) lua_newuserdata(L, sizeof(*i));
 	i->end = &db->installed.packages;
 	i->node = list_entry((&db->installed.packages)->next,
-			   struct apk_installed_package,
+			   struct ps4_installed_package,
 			   installed_pkgs_list);
 
 	lua_pushcclosure(L, iterate_installed, 1);
 	return 1;
 }
 
-static const luaL_Reg reg_apk_methods[] = {
+static const luaL_Reg reg_ps4_methods[] = {
 	{"version_validate",	Pversion_validate},
 	{"version_compare",	Pversion_compare},
 	{"version_is_less",	Pversion_is_less},
-	{"db_open",		Papk_db_open},
-	{"who_owns",		Papk_who_owns},
-	{"exists",		Papk_exists},
-	{"is_installed",	Papk_exists},
+	{"db_open",		Pps4_db_open},
+	{"who_owns",		Pps4_who_owns},
+	{"exists",		Pps4_exists},
+	{"is_installed",	Pps4_exists},
 	{"installed",		Pinstalled},
 	{NULL,		NULL}
 };
 
 static int db_create_meta(lua_State *L)
 {
-	luaL_newmetatable(L, APK_DB_META);
+	luaL_newmetatable(L, PS4_DB_META);
 	lua_newtable(L);
 
 	lua_setfield(L, -2, "__index");
-	lua_pushcfunction(L, Papk_db_close);
+	lua_pushcfunction(L, Pps4_db_close);
 	lua_setfield(L, -2, "__gc");
 	return 1;
 }
 
-LUALIB_API int luaopen_apk(lua_State *L)
+LUALIB_API int luaopen_ps4(lua_State *L)
 {
 	db_create_meta(L);
-	luaL_newlib(L, reg_apk_methods);
+	luaL_newlib(L, reg_ps4_methods);
 	lua_pushvalue(L, -1);
 	lua_setglobal(L, LIBNAME);
 
 	lua_pushliteral(L, "version");
-	lua_pushliteral(L, APK_VERSION);
+	lua_pushliteral(L, PS4_VERSION);
 	lua_settable(L, -3);
 
 	return 1;

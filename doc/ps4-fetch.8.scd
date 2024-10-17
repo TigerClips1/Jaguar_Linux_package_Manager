@@ -1,17 +1,17 @@
-apk-fetch(8)
+ps4-fetch(8)
 
 # NAME
 
-apk fetch - download packages from global repositories to a local directory
+ps4 fetch - download packages from global repositories to a local directory
 
 # SYNOPSIS
 
-*apk fetch* [<_options_>...] _packages_...
+*ps4 fetch* [<_options_>...] _packages_...
 
 # DESCRIPTION
 
-*apk fetch* downloads the requested packages from the configured package
-repositories (see *apk-repositories*(5)) to a local directory. The current
+*ps4 fetch* downloads the requested packages from the configured package
+repositories (see *ps4-repositories*(5)) to a local directory. The current
 working directory is used as the destination directory unless *-o* is
 specified.
 
@@ -31,7 +31,7 @@ specified.
 	Fetch packages and all of their dependencies.
 
 *-s, --stdout*
-	Dump the .apk file(s) to stdout.
+	Dump the .ps4 file(s) to stdout.
 
 	*Note*: this option is incompatible with *-o*, *-R*, and the global
 	*--progress* option.

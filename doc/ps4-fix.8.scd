@@ -1,21 +1,21 @@
-apk-fix(8)
+ps4-fix(8)
 
 # NAME
 
-apk fix - repair packages or system
+ps4 fix - repair packages or system
 
 # SYNOPSIS
 
-*apk fix* [<_options_>...] [_packages_...]
+*ps4 fix* [<_options_>...] [_packages_...]
 
 # DESCRIPTION
 
-*apk fix* applies repair strategies to correct errors in the installation of
+*ps4 fix* applies repair strategies to correct errors in the installation of
 the specified packages, or all installed packages if none are specified.
 
 # OPTIONS
 
-*apk fix* supports the commit options described in *apk*(8), as well as the
+*ps4 fix* supports the commit options described in *ps4*(8), as well as the
 following options:
 
 *-d, --depends*

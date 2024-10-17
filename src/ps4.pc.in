@@ -2,9 +2,9 @@ exec_prefix=@EXEC_DIR@
 libdir=@LIB_DIR@
 includedir=@INCLUDE_DIR@
 
-Name: apk
-Description: Alpine Package Manager
+Name: ps4
+Description: PS4linux package manager
 Version: @VERSION@
 Requires: zlib openssl
-Libs: -L${libdir} -lapk
+Libs: -L${libdir} -lps4
 Cflags: -I${includedir}

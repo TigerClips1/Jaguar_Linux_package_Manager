@@ -1,6 +1,6 @@
 #!/bin/sh
 
-: ${APK=apk} ${SRC=.}
+: ${PS4=ps4} ${SRC=.}
 T_MODE="$1"
 shift 1
 case "$T_MODE" in

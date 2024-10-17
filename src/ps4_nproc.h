@@ -4,7 +4,7 @@
 #include <sched.h>
 #endif
 
-static inline int apk_get_nproc(void)
+static inline int ps4_get_nproc(void)
 {
 #ifdef __linux__
 	cpu_set_t cset;

@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <sys/xattr.h>
 
-static inline int apk_fsetxattr(int fd, const char *name, void *value, size_t size)
+static inline int ps4_fsetxattr(int fd, const char *name, void *value, size_t size)
 {
 #ifdef __APPLE__
 	return fsetxattr(fd, name, value, size, 0, 0);
@@ -11,7 +11,7 @@ static inline int apk_fsetxattr(int fd, const char *name, void *value, size_t si
 #endif
 }
 
-static inline ssize_t apk_fgetxattr(int fd, const char *name, void *value, size_t size)
+static inline ssize_t ps4_fgetxattr(int fd, const char *name, void *value, size_t size)
 {
 #ifdef __APPLE__
 	return fgetxattr(fd, name, value, size, 0, 0);
@@ -20,7 +20,7 @@ static inline ssize_t apk_fgetxattr(int fd, const char *name, void *value, size_
 #endif
 }
 
-static inline ssize_t apk_flistxattr(int fd, char *namebuf, size_t size)
+static inline ssize_t ps4_flistxattr(int fd, char *namebuf, size_t size)
 {
 #ifdef __APPLE__
 	return flistxattr(fd, namebuf, size, 0);

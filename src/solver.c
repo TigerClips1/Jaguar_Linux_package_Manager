@@ -1,4 +1,4 @@
-/* solver.c - Alpine Package Keeper (APK)
+/* solver.c - PS4linux package manager (PS4)
  * Up- and down-propagating, forwarding checking, deductive dependency solver.
  *
  * Copyright (C) 2008-2013 Timo Teräs <timo.teras@iki.fi>
@@ -10,13 +10,15 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <strings.h>
-#include "apk_defines.h"
-#include "apk_database.h"
-#include "apk_package.h"
-#include "apk_solver.h"
+#include "ps4_defines.h"
+#include "ps4_database.h"
+#include "ps4_package.h"
+#include "ps4_solver.h"
 
-#include "apk_print.h"
+#include "ps4_print.h"
 
+
+// maybe this is needed for debuging i may or may not enable it 
 //#define DEBUG_PRINT
 
 #ifdef DEBUG_PRINT
@@ -26,11 +28,11 @@
 #define dbg_printf(args...)
 #endif
 
-#define ASSERT(cond, fmt...)	if (!(cond)) { apk_error(fmt); *(char*)NULL = 0; }
+#define ASSERT(cond, fmt...)	if (!(cond)) { ps4_error(fmt); *(char*)NULL = 0; }
 
-struct apk_solver_state {
-	struct apk_database *db;
-	struct apk_changeset *changeset;
+struct ps4_solver_state {
+	struct ps4_database *db;
+	struct ps4_changeset *changeset;
 	struct list_head dirty_head;
 	struct list_head unresolved_head;
 	unsigned int errors;
@@ -40,20 +42,20 @@ struct apk_solver_state {
 	unsigned ignore_conflict : 1;
 };
 
-static struct apk_provider provider_none = {
+static struct ps4_provider provider_none = {
 	.pkg = NULL,
-	.version = &apk_atom_null
+	.version = &ps4_atom_null
 };
 
-void apk_solver_set_name_flags(struct apk_name *name,
+void ps4_solver_set_name_flags(struct ps4_name *name,
 			       unsigned short solver_flags,
 			       unsigned short solver_flags_inheritable)
 {
-	struct apk_provider *p;
+	struct ps4_provider *p;
 
 	name->solver_flags_set = 1;
 	foreach_array_item(p, name->providers) {
-		struct apk_package *pkg = p->pkg;
+		struct ps4_package *pkg = p->pkg;
 		dbg_printf("marking '" PKG_VER_FMT "' = 0x%04x / 0x%04x\n",
 			PKG_VER_PRINTF(pkg), solver_flags, solver_flags_inheritable);
 		pkg->ss.solver_flags |= solver_flags;
@@ -61,7 +63,7 @@ void apk_solver_set_name_flags(struct apk_name *name,
 	}
 }
 
-static int get_tag(struct apk_database *db, unsigned int pinning_mask, unsigned int repos)
+static int get_tag(struct ps4_database *db, unsigned int pinning_mask, unsigned int repos)
 {
 	int i;
 
@@ -71,15 +73,15 @@ static int get_tag(struct apk_database *db, unsigned int pinning_mask, unsigned 
 		if (db->repo_tags[i].allowed_repos & repos)
 			return i;
 	}
-	return APK_DEFAULT_REPOSITORY_TAG;
+	return PS4_DEFAULT_REPOSITORY_TAG;
 }
 
-static unsigned int get_pkg_repos(struct apk_database *db, struct apk_package *pkg)
+static unsigned int get_pkg_repos(struct ps4_database *db, struct ps4_package *pkg)
 {
 	return pkg->repos | (pkg->ipkg ? db->repo_tags[pkg->ipkg->repository_tag].allowed_repos : 0);
 }
 
-static void mark_error(struct apk_solver_state *ss, struct apk_package *pkg, const char *reason)
+static void mark_error(struct ps4_solver_state *ss, struct ps4_package *pkg, const char *reason)
 {
 	if (pkg == NULL || pkg->ss.error)
 		return;
@@ -88,7 +90,7 @@ static void mark_error(struct apk_solver_state *ss, struct apk_package *pkg, con
 	ss->errors++;
 }
 
-static void queue_dirty(struct apk_solver_state *ss, struct apk_name *name)
+static void queue_dirty(struct ps4_solver_state *ss, struct ps4_name *name)
 {
 	if (list_hashed(&name->ss.dirty_list) || name->ss.locked ||
 	    (name->ss.requirers == 0 && !name->ss.reevaluate_iif))
@@ -98,7 +100,7 @@ static void queue_dirty(struct apk_solver_state *ss, struct apk_name *name)
 	list_add_tail(&name->ss.dirty_list, &ss->dirty_head);
 }
 
-static void queue_unresolved(struct apk_solver_state *ss, struct apk_name *name)
+static void queue_unresolved(struct ps4_solver_state *ss, struct ps4_name *name)
 {
 	int want;
 
@@ -113,9 +115,9 @@ static void queue_unresolved(struct apk_solver_state *ss, struct apk_name *name)
 		list_del_init(&name->ss.unresolved_list);
 }
 
-static void reevaluate_reverse_deps(struct apk_solver_state *ss, struct apk_name *name)
+static void reevaluate_reverse_deps(struct ps4_solver_state *ss, struct ps4_name *name)
 {
-	struct apk_name **pname0, *name0;
+	struct ps4_name **pname0, *name0;
 
 	foreach_array_item(pname0, name->rdepends) {
 		name0 = *pname0;
@@ -125,9 +127,9 @@ static void reevaluate_reverse_deps(struct apk_solver_state *ss, struct apk_name
 	}
 }
 
-static void reevaluate_reverse_installif(struct apk_solver_state *ss, struct apk_name *name)
+static void reevaluate_reverse_installif(struct ps4_solver_state *ss, struct ps4_name *name)
 {
-	struct apk_name **pname0, *name0;
+	struct ps4_name **pname0, *name0;
 
 	foreach_array_item(pname0, name->rinstall_if) {
 		name0 = *pname0;
@@ -138,17 +140,17 @@ static void reevaluate_reverse_installif(struct apk_solver_state *ss, struct apk
 	}
 }
 
-static void reevaluate_reverse_installif_pkg(struct apk_solver_state *ss, struct apk_package *pkg)
+static void reevaluate_reverse_installif_pkg(struct ps4_solver_state *ss, struct ps4_package *pkg)
 {
-	struct apk_dependency *d;
+	struct ps4_dependency *d;
 	reevaluate_reverse_installif(ss, pkg->name);
 	foreach_array_item(d, pkg->provides)
 		reevaluate_reverse_installif(ss, d->name);
 }
 
-static void disqualify_package(struct apk_solver_state *ss, struct apk_package *pkg, const char *reason)
+static void disqualify_package(struct ps4_solver_state *ss, struct ps4_package *pkg, const char *reason)
 {
-	struct apk_dependency *p;
+	struct ps4_dependency *p;
 
 	dbg_printf("disqualify_package: " PKG_VER_FMT " (%s)\n", PKG_VER_PRINTF(pkg), reason);
 	pkg->ss.pkg_selectable = 0;
@@ -158,33 +160,33 @@ static void disqualify_package(struct apk_solver_state *ss, struct apk_package *
 	reevaluate_reverse_installif_pkg(ss, pkg);
 }
 
-static int dependency_satisfiable(struct apk_solver_state *ss, const struct apk_package *dpkg, struct apk_dependency *dep)
+static int dependency_satisfiable(struct ps4_solver_state *ss, const struct ps4_package *dpkg, struct ps4_dependency *dep)
 {
-	struct apk_name *name = dep->name;
-	struct apk_provider *p;
+	struct ps4_name *name = dep->name;
+	struct ps4_provider *p;
 
-	if (apk_dep_conflict(dep) && ss->ignore_conflict)
+	if (ps4_dep_conflict(dep) && ss->ignore_conflict)
 		return TRUE;
 
 	if (name->ss.locked)
-		return apk_dep_is_provided(dpkg, dep, &name->ss.chosen);
+		return ps4_dep_is_provided(dpkg, dep, &name->ss.chosen);
 
-	if (name->ss.requirers == 0 && apk_dep_is_provided(dpkg, dep, &provider_none))
+	if (name->ss.requirers == 0 && ps4_dep_is_provided(dpkg, dep, &provider_none))
 		return TRUE;
 
 	foreach_array_item(p, name->providers)
-		if (p->pkg->ss.pkg_selectable && apk_dep_is_provided(dpkg, dep, p))
+		if (p->pkg->ss.pkg_selectable && ps4_dep_is_provided(dpkg, dep, p))
 			return TRUE;
 
 	return FALSE;
 }
 
-static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
+static void discover_name(struct ps4_solver_state *ss, struct ps4_name *name)
 {
-	struct apk_database *db = ss->db;
-	struct apk_name **pname0;
-	struct apk_provider *p;
-	struct apk_dependency *dep;
+	struct ps4_database *db = ss->db;
+	struct ps4_name **pname0;
+	struct ps4_provider *p;
+	struct ps4_dependency *dep;
 	unsigned int repos, num_virtual = 0;
 
 	if (name->ss.seen)
@@ -193,13 +195,13 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 	name->ss.seen = 1;
 	name->ss.no_iif = 1;
 	foreach_array_item(p, name->providers) {
-		struct apk_package *pkg = p->pkg;
+		struct ps4_package *pkg = p->pkg;
 		if (!pkg->ss.seen) {
 			pkg->ss.seen = 1;
-			pkg->ss.pinning_allowed = APK_DEFAULT_PINNING_MASK;
-			pkg->ss.pinning_preferred = APK_DEFAULT_PINNING_MASK;
+			pkg->ss.pinning_allowed = PS4_DEFAULT_PINNING_MASK;
+			pkg->ss.pinning_preferred = PS4_DEFAULT_PINNING_MASK;
 			pkg->ss.pkg_available = pkg->filename_ndx ||
-				 (pkg->repos & db->available_repos & ~BIT(APK_REPOSITORY_CACHED));
+				 (pkg->repos & db->available_repos & ~BIT(PS4_REPOSITORY_CACHED));
 			/* Package is in 'cached' repository if filename is provided,
 			 * or it's a 'virtual' package with install_size zero */
 			pkg->ss.pkg_selectable = !pkg->uninstallable &&
@@ -212,8 +214,8 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 			 * currently works only if SOLVERF_AVAILABLE is set in the
 			 * global solver flags. */
 			pkg->ss.iif_failed =
-				(apk_array_len(pkg->install_if) == 0) ||
-				((ss->solver_flags_inherit & APK_SOLVERF_AVAILABLE) &&
+				(ps4_array_len(pkg->install_if) == 0) ||
+				((ss->solver_flags_inherit & PS4_SOLVERF_AVAILABLE) &&
 				 !pkg->ss.pkg_available);
 
 			repos = get_pkg_repos(db, pkg);
@@ -247,13 +249,13 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 		name->name, name->ss.max_dep_chain, name->ss.no_iif, num_virtual);
 	if (num_virtual == 0)
 		name->priority = 0;
-	else if (num_virtual != apk_array_len(name->providers))
+	else if (num_virtual != ps4_array_len(name->providers))
 		name->priority = 1;
 	else
 		name->priority = 2;
 
 	foreach_array_item(p, name->providers) {
-		struct apk_package *pkg = p->pkg;
+		struct ps4_package *pkg = p->pkg;
 		foreach_array_item(pname0, pkg->name->rinstall_if)
 			discover_name(ss, *pname0);
 		foreach_array_item(dep, pkg->provides) {
@@ -264,7 +266,7 @@ static void discover_name(struct apk_solver_state *ss, struct apk_name *name)
 	}
 }
 
-static void name_requirers_changed(struct apk_solver_state *ss, struct apk_name *name)
+static void name_requirers_changed(struct ps4_solver_state *ss, struct ps4_name *name)
 {
 	queue_unresolved(ss, name);
 	reevaluate_reverse_installif(ss, name);
@@ -272,7 +274,7 @@ static void name_requirers_changed(struct apk_solver_state *ss, struct apk_name 
 }
 
 static void inherit_pinning_and_flags(
-	struct apk_solver_state *ss, struct apk_package *pkg, struct apk_package *ppkg)
+	struct ps4_solver_state *ss, struct ps4_package *pkg, struct ps4_package *ppkg)
 {
 	unsigned int repos = get_pkg_repos(ss->db, pkg);
 
@@ -288,37 +290,37 @@ static void inherit_pinning_and_flags(
 		pkg->ss.pinning_allowed |= ss->pinning_inherit;
 		/* also prefer main pinnings */
 		pkg->ss.pinning_preferred = ss->pinning_inherit;
-		pkg->ss.tag_preferred = !!(repos & apk_db_get_pinning_mask_repos(ss->db, pkg->ss.pinning_preferred));
+		pkg->ss.tag_preferred = !!(repos & ps4_db_get_pinning_mask_repos(ss->db, pkg->ss.pinning_preferred));
 	}
-	pkg->ss.tag_ok |= !!(repos & apk_db_get_pinning_mask_repos(ss->db, pkg->ss.pinning_allowed));
+	pkg->ss.tag_ok |= !!(repos & ps4_db_get_pinning_mask_repos(ss->db, pkg->ss.pinning_allowed));
 
 	dbg_printf(PKG_VER_FMT ": tag_ok=%d, tag_pref=%d\n",
 		PKG_VER_PRINTF(pkg), pkg->ss.tag_ok, pkg->ss.tag_preferred);
 }
 
-static void apply_constraint(struct apk_solver_state *ss, struct apk_package *ppkg, struct apk_dependency *dep)
+static void apply_constraint(struct ps4_solver_state *ss, struct ps4_package *ppkg, struct ps4_dependency *dep)
 {
-	struct apk_name *name = dep->name;
-	struct apk_provider *p0;
+	struct ps4_name *name = dep->name;
+	struct ps4_provider *p0;
 	int is_provided;
 
 	dbg_printf("    apply_constraint: %s%s%s" BLOB_FMT "\n",
-		apk_dep_conflict(dep) ? "!" : "",
+		ps4_dep_conflict(dep) ? "!" : "",
 		name->name,
-		apk_version_op_string(dep->op),
+		ps4_version_op_string(dep->op),
 		BLOB_PRINTF(*dep->version));
 
-	if (apk_dep_conflict(dep) && ss->ignore_conflict)
+	if (ps4_dep_conflict(dep) && ss->ignore_conflict)
 		return;
 
-	name->ss.requirers += !apk_dep_conflict(dep);
-	if (name->ss.requirers == 1 && !apk_dep_conflict(dep))
+	name->ss.requirers += !ps4_dep_conflict(dep);
+	if (name->ss.requirers == 1 && !ps4_dep_conflict(dep))
 		name_requirers_changed(ss, name);
 
 	foreach_array_item(p0, name->providers) {
-		struct apk_package *pkg0 = p0->pkg;
+		struct ps4_package *pkg0 = p0->pkg;
 
-		is_provided = apk_dep_is_provided(ppkg, dep, p0);
+		is_provided = ps4_dep_is_provided(ppkg, dep, p0);
 		dbg_printf("    apply_constraint: provider: %s-" BLOB_FMT ": %d\n",
 			pkg0->name->name, BLOB_PRINTF(*p0->version), is_provided);
 
@@ -331,10 +333,10 @@ static void apply_constraint(struct apk_solver_state *ss, struct apk_package *pp
 	}
 }
 
-static void exclude_non_providers(struct apk_solver_state *ss, struct apk_name *name, struct apk_name *must_provide, int skip_virtuals)
+static void exclude_non_providers(struct ps4_solver_state *ss, struct ps4_name *name, struct ps4_name *must_provide, int skip_virtuals)
 {
-	struct apk_provider *p;
-	struct apk_dependency *d;
+	struct ps4_provider *p;
+	struct ps4_dependency *d;
 
 	if (name == must_provide || ss->ignore_conflict)
 		return;
@@ -343,10 +345,10 @@ static void exclude_non_providers(struct apk_solver_state *ss, struct apk_name *
 
 	foreach_array_item(p, name->providers) {
 		if (p->pkg->name == must_provide || !p->pkg->ss.pkg_selectable ||
-		    (skip_virtuals && p->version == &apk_atom_null))
+		    (skip_virtuals && p->version == &ps4_atom_null))
 			goto next;
 		foreach_array_item(d, p->pkg->provides)
-			if (d->name == must_provide || (skip_virtuals && d->version == &apk_atom_null))
+			if (d->name == must_provide || (skip_virtuals && d->version == &ps4_atom_null))
 				goto next;
 		disqualify_package(ss, p->pkg, "provides transitivity");
 	next: ;
@@ -370,12 +372,12 @@ static inline int merge_index_complete(unsigned short *index, int num_options)
 	return ret;
 }
 
-static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
+static void reconsider_name(struct ps4_solver_state *ss, struct ps4_name *name)
 {
-	struct apk_name *name0, **pname0;
-	struct apk_dependency *dep;
-	struct apk_package *first_candidate = NULL, *pkg;
-	struct apk_provider *p;
+	struct ps4_name *name0, **pname0;
+	struct ps4_dependency *dep;
+	struct ps4_package *first_candidate = NULL, *pkg;
+	struct ps4_provider *p;
 	int reevaluate_deps, reevaluate_iif;
 	int num_options = 0, num_tag_not_ok = 0, has_iif = 0, no_iif = 1;
 
@@ -411,12 +413,12 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 			pkg->ss.iif_triggered = 1;
 			pkg->ss.iif_failed = 0;
 			foreach_array_item(dep, pkg->install_if) {
-				if (!dep->name->ss.locked && !apk_dep_conflict(dep)) {
+				if (!dep->name->ss.locked && !ps4_dep_conflict(dep)) {
 					pkg->ss.iif_triggered = 0;
 					pkg->ss.iif_failed = 0;
 					break;
 				}
-				if (!apk_dep_is_provided(pkg, dep, &dep->name->ss.chosen)) {
+				if (!ps4_dep_is_provided(pkg, dep, &dep->name->ss.chosen)) {
 					pkg->ss.iif_triggered = 0;
 					pkg->ss.iif_failed = 1;
 					break;
@@ -443,14 +445,14 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 
 		/* FIXME: can merge also conflicts */
 		foreach_array_item(dep, pkg->depends)
-			if (!apk_dep_conflict(dep))
+			if (!ps4_dep_conflict(dep))
 				merge_index(&dep->name->ss.merge_depends, num_options);
 
 		if (merge_index(&pkg->name->ss.merge_provides, num_options))
-			pkg->name->ss.has_virtual_provides |= (p->version == &apk_atom_null);
+			pkg->name->ss.has_virtual_provides |= (p->version == &ps4_atom_null);
 		foreach_array_item(dep, pkg->provides)
 			if (merge_index(&dep->name->ss.merge_provides, num_options))
-				dep->name->ss.has_virtual_provides |= (dep->version == &apk_atom_null);
+				dep->name->ss.has_virtual_provides |= (dep->version == &ps4_atom_null);
 
 		num_tag_not_ok += !pkg->ss.tag_ok;
 		num_options++;
@@ -513,11 +515,11 @@ static void reconsider_name(struct apk_solver_state *ss, struct apk_name *name)
 		name->name, name->ss.has_options, name->ss.reverse_deps_done);
 }
 
-static int compare_providers(struct apk_solver_state *ss,
-			     struct apk_provider *pA, struct apk_provider *pB)
+static int compare_providers(struct ps4_solver_state *ss,
+			     struct ps4_provider *pA, struct ps4_provider *pB)
 {
-	struct apk_database *db = ss->db;
-	struct apk_package *pkgA = pA->pkg, *pkgB = pB->pkg;
+	struct ps4_database *db = ss->db;
+	struct ps4_package *pkgA = pA->pkg, *pkgB = pB->pkg;
 	unsigned int solver_flags;
 	int r;
 
@@ -529,8 +531,8 @@ static int compare_providers(struct apk_solver_state *ss,
 	solver_flags = pkgA->ss.solver_flags | pkgB->ss.solver_flags;
 
 	/* Honor removal preference */
-	if (solver_flags & APK_SOLVERF_REMOVE) {
-		r = (int)(pkgB->ss.solver_flags&APK_SOLVERF_REMOVE) - (int)(pkgA->ss.solver_flags&APK_SOLVERF_REMOVE);
+	if (solver_flags & PS4_SOLVERF_REMOVE) {
+		r = (int)(pkgB->ss.solver_flags&PS4_SOLVERF_REMOVE) - (int)(pkgA->ss.solver_flags&PS4_SOLVERF_REMOVE);
 		if (r) {
 			dbg_printf("    prefer removal hint\n");
 			return r;
@@ -538,9 +540,9 @@ static int compare_providers(struct apk_solver_state *ss,
 	}
 
 	/* Latest version required? */
-	if ((solver_flags & APK_SOLVERF_LATEST) &&
-	    (pkgA->ss.pinning_allowed == APK_DEFAULT_PINNING_MASK) &&
-	    (pkgB->ss.pinning_allowed == APK_DEFAULT_PINNING_MASK)) {
+	if ((solver_flags & PS4_SOLVERF_LATEST) &&
+	    (pkgA->ss.pinning_allowed == PS4_DEFAULT_PINNING_MASK) &&
+	    (pkgB->ss.pinning_allowed == PS4_DEFAULT_PINNING_MASK)) {
 		/* Prefer allowed pinning */
 		r = (int)pkgA->ss.tag_ok - (int)pkgB->ss.tag_ok;
 		if (r) {
@@ -549,13 +551,13 @@ static int compare_providers(struct apk_solver_state *ss,
 		}
 
 		/* Prefer available */
-		if (solver_flags & APK_SOLVERF_AVAILABLE) {
+		if (solver_flags & PS4_SOLVERF_AVAILABLE) {
 			r = (int)pkgA->ss.pkg_available - (int)pkgB->ss.pkg_available;
 			if (r) {
 				dbg_printf("    prefer available\n");
 				return r;
 			}
-		} else if (solver_flags & APK_SOLVERF_REINSTALL) {
+		} else if (solver_flags & PS4_SOLVERF_REINSTALL) {
 			r = (int)pkgA->ss.pkg_selectable - (int)pkgB->ss.pkg_selectable;
 			if (r) {
 				dbg_printf("    prefer available (reinstall)\n");
@@ -583,8 +585,8 @@ static int compare_providers(struct apk_solver_state *ss,
 		}
 
 		/* Prefer installed on self-upgrade */
-		if ((db->performing_self_upgrade && !(solver_flags & APK_SOLVERF_UPGRADE)) ||
-		    (solver_flags & APK_SOLVERF_INSTALLED)) {
+		if ((db->performing_self_upgrade && !(solver_flags & PS4_SOLVERF_UPGRADE)) ||
+		    (solver_flags & PS4_SOLVERF_INSTALLED)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r) {
 				dbg_printf("    prefer installed\n");
@@ -600,7 +602,7 @@ static int compare_providers(struct apk_solver_state *ss,
 		}
 
 		/* Prefer available */
-		if (solver_flags & APK_SOLVERF_AVAILABLE) {
+		if (solver_flags & PS4_SOLVERF_AVAILABLE) {
 			r = (int)pkgA->ss.pkg_available - (int)pkgB->ss.pkg_available;
 			if (r) {
 				dbg_printf("    prefer available\n");
@@ -616,7 +618,7 @@ static int compare_providers(struct apk_solver_state *ss,
 		}
 
 		/* Prefer installed */
-		if (!(solver_flags & APK_SOLVERF_UPGRADE)) {
+		if (!(solver_flags & PS4_SOLVERF_UPGRADE)) {
 			r = (pkgA->ipkg != NULL) - (pkgB->ipkg != NULL);
 			if (r) {
 				dbg_printf("    prefer installed\n");
@@ -626,22 +628,22 @@ static int compare_providers(struct apk_solver_state *ss,
 	}
 
 	/* Select latest by requested name */
-	switch (apk_version_compare(*pA->version, *pB->version)) {
-	case APK_VERSION_LESS:
+	switch (ps4_version_compare(*pA->version, *pB->version)) {
+	case PS4_VERSION_LESS:
 		dbg_printf("    select latest by requested name (less)\n");
 		return -1;
-	case APK_VERSION_GREATER:
+	case PS4_VERSION_GREATER:
 		dbg_printf("    select latest by requested name (greater)\n");
 		return 1;
 	}
 
 	/* Select latest by principal name */
 	if (pkgA->name == pkgB->name) {
-		switch (apk_version_compare(*pkgA->version, *pkgB->version)) {
-		case APK_VERSION_LESS:
+		switch (ps4_version_compare(*pkgA->version, *pkgB->version)) {
+		case PS4_VERSION_LESS:
 			dbg_printf("    select latest by principal name (less)\n");
 			return -1;
-		case APK_VERSION_GREATER:
+		case PS4_VERSION_GREATER:
 			dbg_printf("    select latest by principal name (greater)\n");
 			return 1;
 		}
@@ -673,15 +675,15 @@ static int compare_providers(struct apk_solver_state *ss,
 	return ffs(pkgB->repos) - ffs(pkgA->repos);
 }
 
-static void assign_name(struct apk_solver_state *ss, struct apk_name *name, struct apk_provider p)
+static void assign_name(struct ps4_solver_state *ss, struct ps4_name *name, struct ps4_provider p)
 {
-	struct apk_provider *p0;
-	struct apk_dependency *dep;
+	struct ps4_provider *p0;
+	struct ps4_dependency *dep;
 
 	if (name->ss.locked) {
 		/* If both are providing this name without version, it's ok */
-		if (p.version == &apk_atom_null &&
-		    name->ss.chosen.version == &apk_atom_null)
+		if (p.version == &ps4_atom_null &&
+		    name->ss.chosen.version == &ps4_atom_null)
 			return;
 		if (ss->ignore_conflict)
 			return;
@@ -710,8 +712,8 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 	if (!ss->ignore_conflict) {
 		foreach_array_item(p0, name->providers) {
 			if (p0->pkg == p.pkg) continue;
-			if (p.version == &apk_atom_null &&
-			    p0->version == &apk_atom_null)
+			if (p.version == &ps4_atom_null &&
+			    p0->version == &ps4_atom_null)
 				continue;
 			disqualify_package(ss, p0->pkg, "conflicting provides");
 		}
@@ -723,11 +725,11 @@ static void assign_name(struct apk_solver_state *ss, struct apk_name *name, stru
 		reevaluate_reverse_installif(ss, name);
 }
 
-static void select_package(struct apk_solver_state *ss, struct apk_name *name)
+static void select_package(struct ps4_solver_state *ss, struct ps4_name *name)
 {
-	struct apk_provider chosen = { NULL, &apk_atom_null }, *p;
-	struct apk_package *pkg = NULL;
-	struct apk_dependency *d;
+	struct ps4_provider chosen = { NULL, &ps4_atom_null }, *p;
+	struct ps4_package *pkg = NULL;
+	struct ps4_dependency *d;
 
 	dbg_printf("select_package: %s (requirers=%d, iif=%d)\n", name->name, name->ss.requirers, name->ss.has_iif);
 
@@ -749,7 +751,7 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 			}
 			/* Virtual packages without provider_priority cannot be autoselected,
 			 * unless there is only one provider */
-			if (p->version == &apk_atom_null &&
+			if (p->version == &ps4_atom_null &&
 			    p->pkg->name->auto_select_virtual == 0 &&
 			    p->pkg->name->ss.requirers == 0 &&
 			    p->pkg->provider_priority == 0) {
@@ -771,9 +773,9 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 		}
 		dbg_printf("selecting: " PKG_VER_FMT ", available: %d\n", PKG_VER_PRINTF(pkg), pkg->ss.pkg_selectable);
 
-		assign_name(ss, pkg->name, APK_PROVIDER_FROM_PACKAGE(pkg));
+		assign_name(ss, pkg->name, PS4_PROVIDER_FROM_PACKAGE(pkg));
 		foreach_array_item(d, pkg->provides)
-			assign_name(ss, d->name, APK_PROVIDER_FROM_PROVIDES(pkg, d));
+			assign_name(ss, d->name, PS4_PROVIDER_FROM_PROVIDES(pkg, d));
 
 		foreach_array_item(d, pkg->depends)
 			apply_constraint(ss, pkg, d);
@@ -787,17 +789,17 @@ static void select_package(struct apk_solver_state *ss, struct apk_name *name)
 	}
 }
 
-static void record_change(struct apk_solver_state *ss, struct apk_package *opkg, struct apk_package *npkg)
+static void record_change(struct ps4_solver_state *ss, struct ps4_package *opkg, struct ps4_package *npkg)
 {
-	struct apk_changeset *changeset = ss->changeset;
-	struct apk_change *change;
+	struct ps4_changeset *changeset = ss->changeset;
+	struct ps4_change *change;
 
-	change = apk_change_array_add(&changeset->changes, (struct apk_change) {
+	change = ps4_change_array_add(&changeset->changes, (struct ps4_change) {
 		.old_pkg = opkg,
 		.old_repository_tag = opkg ? opkg->ipkg->repository_tag : 0,
 		.new_pkg = npkg,
 		.new_repository_tag = npkg ? get_tag(ss->db, npkg->ss.pinning_allowed, get_pkg_repos(ss->db, npkg)) : 0,
-		.reinstall = npkg ? !!(npkg->ss.solver_flags & APK_SOLVERF_REINSTALL) : 0,
+		.reinstall = npkg ? !!(npkg->ss.solver_flags & PS4_SOLVERF_REINSTALL) : 0,
 	});
 	if (npkg == NULL)
 		changeset->num_remove++;
@@ -807,28 +809,28 @@ static void record_change(struct apk_solver_state *ss, struct apk_package *opkg,
 		changeset->num_adjust++;
 }
 
-static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *name);
-static void cset_gen_name_remove(struct apk_solver_state *ss, struct apk_package *pkg);
-static void cset_gen_dep(struct apk_solver_state *ss, struct apk_package *ppkg, struct apk_dependency *dep);
+static void cset_gen_name_change(struct ps4_solver_state *ss, struct ps4_name *name);
+static void cset_gen_name_remove(struct ps4_solver_state *ss, struct ps4_package *pkg);
+static void cset_gen_dep(struct ps4_solver_state *ss, struct ps4_package *ppkg, struct ps4_dependency *dep);
 
-static void cset_track_deps_added(struct apk_package *pkg)
+static void cset_track_deps_added(struct ps4_package *pkg)
 {
-	struct apk_dependency *d;
+	struct ps4_dependency *d;
 
 	foreach_array_item(d, pkg->depends) {
-		if (apk_dep_conflict(d) || !d->name->ss.installed_name)
+		if (ps4_dep_conflict(d) || !d->name->ss.installed_name)
 			continue;
 		d->name->ss.installed_name->ss.requirers++;
 	}
 }
 
-static void cset_track_deps_removed(struct apk_solver_state *ss, struct apk_package *pkg)
+static void cset_track_deps_removed(struct ps4_solver_state *ss, struct ps4_package *pkg)
 {
-	struct apk_dependency *d;
-	struct apk_package *pkg0;
+	struct ps4_dependency *d;
+	struct ps4_package *pkg0;
 
 	foreach_array_item(d, pkg->depends) {
-		if (apk_dep_conflict(d) || !d->name->ss.installed_name)
+		if (ps4_dep_conflict(d) || !d->name->ss.installed_name)
 			continue;
 		if (--d->name->ss.installed_name->ss.requirers > 0)
 			continue;
@@ -838,7 +840,7 @@ static void cset_track_deps_removed(struct apk_solver_state *ss, struct apk_pack
 	}
 }
 
-static void cset_check_removal_by_deps(struct apk_solver_state *ss, struct apk_package *pkg)
+static void cset_check_removal_by_deps(struct ps4_solver_state *ss, struct ps4_package *pkg)
 {
 	/* NOTE: an orphaned package name may have 0 requirers because it is now being satisfied
 	 * through an alternate provider.  In these cases, we will handle this later as an adjustment
@@ -849,26 +851,26 @@ static void cset_check_removal_by_deps(struct apk_solver_state *ss, struct apk_p
 		cset_gen_name_remove(ss, pkg);
 }
 
-static void cset_check_install_by_iif(struct apk_solver_state *ss, struct apk_name *name)
+static void cset_check_install_by_iif(struct ps4_solver_state *ss, struct ps4_name *name)
 {
-	struct apk_package *pkg = name->ss.chosen.pkg;
-	struct apk_dependency *dep0;
+	struct ps4_package *pkg = name->ss.chosen.pkg;
+	struct ps4_dependency *dep0;
 
 	if (pkg == NULL || !name->ss.seen || name->ss.in_changeset)
 		return;
 
 	foreach_array_item(dep0, pkg->install_if) {
-		struct apk_name *name0 = dep0->name;
-		if (!apk_dep_conflict(dep0) == !name0->ss.in_changeset) return;
-		if (!apk_dep_is_provided(pkg, dep0, &name0->ss.chosen)) return;
+		struct ps4_name *name0 = dep0->name;
+		if (!ps4_dep_conflict(dep0) == !name0->ss.in_changeset) return;
+		if (!ps4_dep_is_provided(pkg, dep0, &name0->ss.chosen)) return;
 	}
 	cset_gen_name_change(ss, name);
 }
 
-static void cset_check_removal_by_iif(struct apk_solver_state *ss, struct apk_name *name)
+static void cset_check_removal_by_iif(struct ps4_solver_state *ss, struct ps4_name *name)
 {
-	struct apk_package *pkg = name->ss.installed_pkg;
-	struct apk_dependency *dep0;
+	struct ps4_package *pkg = name->ss.installed_pkg;
+	struct ps4_dependency *dep0;
 
 	if (pkg == NULL || name->ss.in_changeset || name->ss.chosen.pkg != NULL)
 		return;
@@ -882,10 +884,10 @@ static void cset_check_removal_by_iif(struct apk_solver_state *ss, struct apk_na
 	}
 }
 
-static void cset_check_by_reverse_iif(struct apk_solver_state *ss, struct apk_package *pkg, void (*cb)(struct apk_solver_state *ss, struct apk_name *))
+static void cset_check_by_reverse_iif(struct ps4_solver_state *ss, struct ps4_package *pkg, void (*cb)(struct ps4_solver_state *ss, struct ps4_name *))
 {
-	struct apk_name **pname;
-	struct apk_dependency *d;
+	struct ps4_name **pname;
+	struct ps4_dependency *d;
 
 	if (!pkg) return;
 	foreach_array_item(pname, pkg->name->rinstall_if)
@@ -895,9 +897,9 @@ static void cset_check_by_reverse_iif(struct apk_solver_state *ss, struct apk_pa
 			cb(ss, *pname);
 }
 
-static void cset_gen_name_remove_orphan(struct apk_solver_state *ss, struct apk_name *name)
+static void cset_gen_name_remove_orphan(struct ps4_solver_state *ss, struct ps4_name *name)
 {
-	struct apk_provider *p;
+	struct ps4_provider *p;
 
 	if (name->ss.in_changeset) return;
 	name->ss.in_changeset = 1;
@@ -911,17 +913,17 @@ static void cset_gen_name_remove_orphan(struct apk_solver_state *ss, struct apk_
 
 	/* Remove any package that provides this name and is due to be deleted */
 	foreach_array_item(p, name->providers) {
-		struct apk_package *pkg0 = p->pkg;
-		struct apk_name *name0 = pkg0->name;
+		struct ps4_package *pkg0 = p->pkg;
+		struct ps4_name *name0 = pkg0->name;
 		if (name0->ss.installed_pkg == pkg0 && name0->ss.chosen.pkg == NULL)
 			cset_gen_name_remove(ss, pkg0);
 	}
 }
 
-static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *name)
+static void cset_gen_name_change(struct ps4_solver_state *ss, struct ps4_name *name)
 {
-	struct apk_package *pkg, *opkg;
-	struct apk_dependency *d;
+	struct ps4_package *pkg, *opkg;
+	struct ps4_dependency *d;
 
 	if (name->ss.in_changeset) return;
 
@@ -952,14 +954,14 @@ static void cset_gen_name_change(struct apk_solver_state *ss, struct apk_name *n
 		cset_track_deps_removed(ss, opkg);
 }
 
-static void cset_gen_name_remove0(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *ctx)
+static void cset_gen_name_remove0(struct ps4_package *pkg0, struct ps4_dependency *dep0, struct ps4_package *pkg, void *ctx)
 {
 	cset_gen_name_remove(ctx, pkg0);
 }
 
-static void cset_gen_name_remove(struct apk_solver_state *ss, struct apk_package *pkg)
+static void cset_gen_name_remove(struct ps4_solver_state *ss, struct ps4_package *pkg)
 {
-	struct apk_name *name = pkg->name;
+	struct ps4_name *name = pkg->name;
 
 	if (pkg->ss.in_changeset ||
 	    (name->ss.chosen.pkg != NULL &&
@@ -968,22 +970,22 @@ static void cset_gen_name_remove(struct apk_solver_state *ss, struct apk_package
 
 	name->ss.in_changeset = 1;
 	pkg->ss.in_changeset = 1;
-	apk_pkg_foreach_reverse_dependency(pkg, APK_FOREACH_INSTALLED|APK_DEP_SATISFIES, cset_gen_name_remove0, ss);
+	ps4_pkg_foreach_reverse_dependency(pkg, PS4_FOREACH_INSTALLED|PS4_DEP_SATISFIES, cset_gen_name_remove0, ss);
 	cset_check_by_reverse_iif(ss, pkg, cset_check_removal_by_iif);
 
 	record_change(ss, pkg, NULL);
 	cset_track_deps_removed(ss, pkg);
 }
 
-static void cset_gen_dep(struct apk_solver_state *ss, struct apk_package *ppkg, struct apk_dependency *dep)
+static void cset_gen_dep(struct ps4_solver_state *ss, struct ps4_package *ppkg, struct ps4_dependency *dep)
 {
-	struct apk_name *name = dep->name;
-	struct apk_package *pkg = name->ss.chosen.pkg;
+	struct ps4_name *name = dep->name;
+	struct ps4_package *pkg = name->ss.chosen.pkg;
 
-	if (apk_dep_conflict(dep) && ss->ignore_conflict)
+	if (ps4_dep_conflict(dep) && ss->ignore_conflict)
 		return;
 
-	if (!apk_dep_is_provided(ppkg, dep, &name->ss.chosen))
+	if (!ps4_dep_is_provided(ppkg, dep, &name->ss.chosen))
 		mark_error(ss, ppkg, "unfulfilled dependency");
 
 	cset_gen_name_change(ss, name);
@@ -992,31 +994,31 @@ static void cset_gen_dep(struct apk_solver_state *ss, struct apk_package *ppkg, 
 		mark_error(ss, ppkg, "propagation up");
 }
 
-static int cset_reset_name(apk_hash_item item, void *ctx)
+static int cset_reset_name(ps4_hash_item item, void *ctx)
 {
-	struct apk_name *name = (struct apk_name *) item;
+	struct ps4_name *name = (struct ps4_name *) item;
 	name->ss.installed_pkg = NULL;
 	name->ss.installed_name = NULL;
 	name->ss.requirers = 0;
 	return 0;
 }
 
-static void generate_changeset(struct apk_solver_state *ss, struct apk_dependency_array *world)
+static void generate_changeset(struct ps4_solver_state *ss, struct ps4_dependency_array *world)
 {
-	struct apk_changeset *changeset = ss->changeset;
-	struct apk_package *pkg;
-	struct apk_installed_package *ipkg;
-	struct apk_dependency *d;
+	struct ps4_changeset *changeset = ss->changeset;
+	struct ps4_package *pkg;
+	struct ps4_installed_package *ipkg;
+	struct ps4_dependency *d;
 
-	apk_array_truncate(changeset->changes, 0);
+	ps4_array_truncate(changeset->changes, 0);
 
-	apk_hash_foreach(&ss->db->available.names, cset_reset_name, NULL);
+	ps4_hash_foreach(&ss->db->available.names, cset_reset_name, NULL);
 	list_for_each_entry(ipkg, &ss->db->installed.packages, installed_pkgs_list) {
 		pkg = ipkg->pkg;
 		pkg->name->ss.installed_pkg = pkg;
 		pkg->name->ss.installed_name = pkg->name;
 		foreach_array_item(d, pkg->provides)
-			if (d->version != &apk_atom_null)
+			if (d->version != &ps4_atom_null)
 				d->name->ss.installed_name = pkg->name;
 	}
 	list_for_each_entry(ipkg, &ss->db->installed.packages, installed_pkgs_list)
@@ -1040,27 +1042,27 @@ static void generate_changeset(struct apk_solver_state *ss, struct apk_dependenc
 		changeset->num_adjust;
 }
 
-static int free_name(apk_hash_item item, void *ctx)
+static int free_name(ps4_hash_item item, void *ctx)
 {
-	struct apk_name *name = (struct apk_name *) item;
+	struct ps4_name *name = (struct ps4_name *) item;
 	memset(&name->ss, 0, sizeof(name->ss));
 	return 0;
 }
 
-static int free_package(apk_hash_item item, void *ctx)
+static int free_package(ps4_hash_item item, void *ctx)
 {
-	struct apk_package *pkg = (struct apk_package *) item;
+	struct ps4_package *pkg = (struct ps4_package *) item;
 	memset(&pkg->ss, 0, sizeof(pkg->ss));
 	return 0;
 }
 
 static int cmp_pkgname(const void *p1, const void *p2)
 {
-	const struct apk_dependency *d1 = p1, *d2 = p2;
-	return apk_name_cmp_display(d1->name, d2->name);
+	const struct ps4_dependency *d1 = p1, *d2 = p2;
+	return ps4_name_cmp_display(d1->name, d2->name);
 }
 
-static int compare_name_dequeue(const struct apk_name *a, const struct apk_name *b)
+static int compare_name_dequeue(const struct ps4_name *a, const struct ps4_name *b)
 {
 	int r;
 
@@ -1082,24 +1084,24 @@ static int compare_name_dequeue(const struct apk_name *a, const struct apk_name 
 	return -r;
 }
 
-int apk_solver_solve(struct apk_database *db,
+int ps4_solver_solve(struct ps4_database *db,
 		     unsigned short solver_flags,
-		     struct apk_dependency_array *world,
-		     struct apk_changeset *changeset)
+		     struct ps4_dependency_array *world,
+		     struct ps4_changeset *changeset)
 {
-	struct apk_name *name, *name0;
-	struct apk_package *pkg;
-	struct apk_solver_state ss_data, *ss = &ss_data;
-	struct apk_dependency *d;
+	struct ps4_name *name, *name0;
+	struct ps4_package *pkg;
+	struct ps4_solver_state ss_data, *ss = &ss_data;
+	struct ps4_dependency *d;
 
-	apk_array_qsort(world, cmp_pkgname);
+	ps4_array_qsort(world, cmp_pkgname);
 
 restart:
 	memset(ss, 0, sizeof(*ss));
 	ss->db = db;
 	ss->changeset = changeset;
-	ss->default_repos = apk_db_get_pinning_mask_repos(db, APK_DEFAULT_PINNING_MASK);
-	ss->ignore_conflict = !!(solver_flags & APK_SOLVERF_IGNORE_CONFLICT);
+	ss->default_repos = ps4_db_get_pinning_mask_repos(db, PS4_DEFAULT_PINNING_MASK);
+	ss->ignore_conflict = !!(solver_flags & PS4_SOLVERF_IGNORE_CONFLICT);
 	list_init(&ss->dirty_head);
 	list_init(&ss->unresolved_head);
 
@@ -1122,7 +1124,7 @@ restart:
 
 	do {
 		while (!list_empty(&ss->dirty_head)) {
-			name = list_pop(&ss->dirty_head, struct apk_name, ss.dirty_list);
+			name = list_pop(&ss->dirty_head, struct ps4_name, ss.dirty_list);
 			reconsider_name(ss, name);
 		}
 
@@ -1143,7 +1145,7 @@ restart:
 
 	generate_changeset(ss, world);
 
-	if (ss->errors && (db->ctx->force & APK_FORCE_BROKEN_WORLD)) {
+	if (ss->errors && (db->ctx->force & PS4_FORCE_BROKEN_WORLD)) {
 		foreach_array_item(d, world) {
 			name = d->name;
 			pkg = name->ss.chosen.pkg;
@@ -1152,8 +1154,8 @@ restart:
 				dbg_printf("disabling broken world dep: %s\n", name->name);
 			}
 		}
-		apk_hash_foreach(&db->available.names, free_name, NULL);
-		apk_hash_foreach(&db->available.packages, free_package, NULL);
+		ps4_hash_foreach(&db->available.names, free_name, NULL);
+		ps4_hash_foreach(&db->available.packages, free_package, NULL);
 		goto restart;
 	}
 
@@ -1162,8 +1164,8 @@ restart:
 		d->layer = d->name->ss.chosen.pkg->layer;
 	}
 
-	apk_hash_foreach(&db->available.names, free_name, NULL);
-	apk_hash_foreach(&db->available.packages, free_package, NULL);
+	ps4_hash_foreach(&db->available.names, free_name, NULL);
+	ps4_hash_foreach(&db->available.packages, free_package, NULL);
 	dbg_printf("solver done, errors=%d\n", ss->errors);
 
 	return ss->errors;

@@ -1,4 +1,4 @@
-/* apk_pathbuilder.h - Alpine Package Keeper (APK)
+/* pathbuilder.c - PS4linux package manager (PS4)
  *
  * Copyright (C) 2021 Timo Teräs <timo.teras@iki.fi>
  * All rights reserved.
@@ -7,9 +7,9 @@
  */
 
 #include <errno.h>
-#include "apk_pathbuilder.h"
+#include "ps4_pathbuilder.h"
 
-int apk_pathbuilder_pushb(struct apk_pathbuilder *pb, apk_blob_t b)
+int ps4_pathbuilder_pushb(struct ps4_pathbuilder *pb, ps4_blob_t b)
 {
 	size_t oldlen = pb->namelen, i = pb->namelen;
 	if (i + b.len + 2 >= ARRAY_SIZE(pb->name)) return -ENAMETOOLONG;
@@ -20,7 +20,7 @@ int apk_pathbuilder_pushb(struct apk_pathbuilder *pb, apk_blob_t b)
 	return oldlen;
 }
 
-void apk_pathbuilder_pop(struct apk_pathbuilder *pb, int pos)
+void ps4_pathbuilder_pop(struct ps4_pathbuilder *pb, int pos)
 {
 	if (pos < 0) return;
 	pb->namelen = pos;

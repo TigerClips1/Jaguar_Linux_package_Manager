@@ -1,4 +1,4 @@
-/* apk_solver_data.h - Alpine Package Keeper (APK)
+/* ps4_solver_data.h - PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2012 Timo Teräs <timo.teras@iki.fi>
@@ -7,23 +7,23 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_SOLVER_DATA_H
-#define APK_SOLVER_DATA_H
+#ifndef PS4_SOLVER_DATA_H
+#define PS4_SOLVER_DATA_H
 
 #include <stdint.h>
-#include "apk_defines.h"
-#include "apk_provider_data.h"
+#include "ps4_defines.h"
+#include "ps4_provider_data.h"
 
-struct apk_solver_name_state {
-	struct apk_provider chosen;
+struct ps4_solver_name_state {
+	struct ps4_provider chosen;
 	union {
 		struct {
 			struct list_head dirty_list;
 			struct list_head unresolved_list;
 		};
 		struct {
-			struct apk_name *installed_name;
-			struct apk_package *installed_pkg;
+			struct ps4_name *installed_name;
+			struct ps4_package *installed_pkg;
 		};
 	};
 	unsigned short requirers;
@@ -42,7 +42,7 @@ struct apk_solver_name_state {
 	unsigned has_virtual_provides : 1;
 };
 
-struct apk_solver_package_state {
+struct ps4_solver_package_state {
 	unsigned int conflicts;
 	unsigned short max_dep_chain;
 	unsigned short pinning_allowed;

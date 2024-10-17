@@ -1,4 +1,4 @@
-/* version.c - Alpine Package Keeper (APK)
+/* version.c - PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -9,9 +9,9 @@
 
 #include <ctype.h>
 
-#include "apk_defines.h"
-#include "apk_version.h"
-#include "apk_ctype.h"
+#include "ps4_defines.h"
+#include "ps4_version.h"
+#include "ps4_ctype.h"
 
 //#define DEBUG_PRINT
 
@@ -22,7 +22,7 @@
 #define dbg_printf(args...)
 #endif
 
-/* Alpine version: digit{.digit}...{letter}{_suf{#}}...{~hash}{-r#} */
+/* Jaguar version: digit{.digit}...{letter}{_suf{#}}...{~hash}{-r#} */
 
 enum PARTS {
 	TOKEN_INITIAL_DIGIT,
@@ -59,10 +59,10 @@ struct token_state {
 	unsigned int token;
 	unsigned int suffix;
 	uint64_t number;
-	apk_blob_t value;
+	ps4_blob_t value;
 };
 
-static int suffix_value(apk_blob_t suf)
+static int suffix_value(ps4_blob_t suf)
 {
 #define SUFFIX_DEFINE(n, str) char suffix_##n[sizeof(str)];
 #define SUFFIX_ASSIGN(n, str) str,
@@ -92,7 +92,7 @@ static int suffix_value(apk_blob_t suf)
 	}
 	char *ptr = (char *)&suffixes + suffix_indexes[val];
 	unsigned short len = suffix_indexes[val+1] - suffix_indexes[val] - 1;
-	if (apk_blob_compare(suf, APK_BLOB_PTR_LEN(ptr, len)) != 0)
+	if (ps4_blob_compare(suf, PS4_BLOB_PTR_LEN(ptr, len)) != 0)
 		return SUFFIX_INVALID;
 	return val;
 }
@@ -126,31 +126,31 @@ static int token_cmp(struct token_state *ta, struct token_state *tb)
 		break;
 	use_string_sort:
 	default:
-		r = apk_blob_sort(ta->value, tb->value);
-		if (r < 0) return APK_VERSION_LESS;
-		if (r > 0) return APK_VERSION_GREATER;
-		return APK_VERSION_EQUAL;
+		r = ps4_blob_sort(ta->value, tb->value);
+		if (r < 0) return PS4_VERSION_LESS;
+		if (r > 0) return PS4_VERSION_GREATER;
+		return PS4_VERSION_EQUAL;
 	}
-	if (a < b) return APK_VERSION_LESS;
-	if (a > b) return APK_VERSION_GREATER;
-	return APK_VERSION_EQUAL;
+	if (a < b) return PS4_VERSION_LESS;
+	if (a > b) return PS4_VERSION_GREATER;
+	return PS4_VERSION_EQUAL;
 }
 
-static void token_parse_digits(struct token_state *t, apk_blob_t *b)
+static void token_parse_digits(struct token_state *t, ps4_blob_t *b)
 {
 	char *start = b->ptr;
-	t->number = apk_blob_pull_uint(b, 10);
-	t->value = APK_BLOB_PTR_LEN(start, b->ptr - start);
+	t->number = ps4_blob_pull_uint(b, 10);
+	t->value = PS4_BLOB_PTR_LEN(start, b->ptr - start);
 	if (t->value.len == 0) t->token = TOKEN_INVALID;
 }
 
-static void token_first(struct token_state *t, apk_blob_t *b)
+static void token_first(struct token_state *t, ps4_blob_t *b)
 {
 	t->token = TOKEN_INITIAL_DIGIT;
 	token_parse_digits(t, b);
 }
 
-static void token_next(struct token_state *t, apk_blob_t *b)
+static void token_next(struct token_state *t, ps4_blob_t *b)
 {
 	if (b->len == 0) {
 		t->token = TOKEN_END;
@@ -162,7 +162,7 @@ static void token_next(struct token_state *t, apk_blob_t *b)
 	switch (b->ptr[0]) {
 	case 'a' ... 'z':
 		if (t->token > TOKEN_DIGIT) goto invalid;
-		t->value = APK_BLOB_PTR_LEN(b->ptr, 1);
+		t->value = PS4_BLOB_PTR_LEN(b->ptr, 1);
 		t->token = TOKEN_LETTER;
 		b->ptr++, b->len--;
 		break;
@@ -187,7 +187,7 @@ static void token_next(struct token_state *t, apk_blob_t *b)
 	case '_':
 		if (t->token > TOKEN_SUFFIX_NO) goto invalid;
 		b->ptr++, b->len--;
-		apk_blob_spn(*b, APK_CTYPE_VERSION_SUFFIX, &t->value, b);
+		ps4_blob_spn(*b, PS4_CTYPE_VERSION_SUFFIX, &t->value, b);
 		t->suffix = suffix_value(t->value);
 		if (t->suffix == SUFFIX_INVALID) goto invalid;
 		t->token = TOKEN_SUFFIX;
@@ -195,13 +195,13 @@ static void token_next(struct token_state *t, apk_blob_t *b)
 	case '~':
 		if (t->token >= TOKEN_COMMIT_HASH) goto invalid;
 		b->ptr++, b->len--;
-		apk_blob_spn(*b, APK_CTYPE_HEXDIGIT, &t->value, b);
+		ps4_blob_spn(*b, PS4_CTYPE_HEXDIGIT, &t->value, b);
 		if (t->value.len == 0) goto invalid;
 		t->token = TOKEN_COMMIT_HASH;
 		break;
 	case '-':
 		if (t->token >= TOKEN_REVISION_NO) goto invalid;
-		if (!apk_blob_pull_blob_match(b, APK_BLOB_STRLIT("-r"))) goto invalid;
+		if (!ps4_blob_pull_blob_match(b, PS4_BLOB_STRLIT("-r"))) goto invalid;
 		t->token = TOKEN_REVISION_NO;
 		token_parse_digits(t, b);
 		break;
@@ -212,51 +212,51 @@ static void token_next(struct token_state *t, apk_blob_t *b)
 	}
 }
 
-const char *apk_version_op_string(int op)
+const char *ps4_version_op_string(int op)
 {
-	switch (op & ~APK_VERSION_CONFLICT) {
-	case APK_VERSION_LESS:
+	switch (op & ~PS4_VERSION_CONFLICT) {
+	case PS4_VERSION_LESS:
 		return "<";
-	case APK_VERSION_LESS|APK_VERSION_EQUAL:
+	case PS4_VERSION_LESS|PS4_VERSION_EQUAL:
 		return "<=";
-	case APK_VERSION_LESS|APK_VERSION_EQUAL|APK_VERSION_FUZZY:
+	case PS4_VERSION_LESS|PS4_VERSION_EQUAL|PS4_VERSION_FUZZY:
 		return "<~";
-	case APK_VERSION_EQUAL|APK_VERSION_FUZZY:
-	case APK_VERSION_FUZZY:
+	case PS4_VERSION_EQUAL|PS4_VERSION_FUZZY:
+	case PS4_VERSION_FUZZY:
 		return "~";
-	case APK_VERSION_EQUAL:
+	case PS4_VERSION_EQUAL:
 		return "=";
-	case APK_VERSION_GREATER|APK_VERSION_EQUAL:
+	case PS4_VERSION_GREATER|PS4_VERSION_EQUAL:
 		return ">=";
-	case APK_VERSION_GREATER|APK_VERSION_EQUAL|APK_VERSION_FUZZY:
+	case PS4_VERSION_GREATER|PS4_VERSION_EQUAL|PS4_VERSION_FUZZY:
 		return ">~";
-	case APK_VERSION_GREATER:
+	case PS4_VERSION_GREATER:
 		return ">";
-	case APK_DEPMASK_CHECKSUM:
+	case PS4_DEPMASK_CHECKSUM:
 		return "><";
-	case APK_DEPMASK_ANY:
+	case PS4_DEPMASK_ANY:
 		return "";
 	default:
 		return "?";
 	}
 }
 
-int apk_version_result_mask_blob(apk_blob_t op)
+int ps4_version_result_mask_blob(ps4_blob_t op)
 {
 	int i, r = 0;
 	for (i = 0; i < op.len; i++) {
 		switch (op.ptr[i]) {
 		case '<':
-			r |= APK_VERSION_LESS;
+			r |= PS4_VERSION_LESS;
 			break;
 		case '>':
-			r |= APK_VERSION_GREATER;
+			r |= PS4_VERSION_GREATER;
 			break;
 		case '=':
-			r |= APK_VERSION_EQUAL;
+			r |= PS4_VERSION_EQUAL;
 			break;
 		case '~':
-			r |= APK_VERSION_FUZZY|APK_VERSION_EQUAL;
+			r |= PS4_VERSION_FUZZY|PS4_VERSION_EQUAL;
 			break;
 		default:
 			return 0;
@@ -265,12 +265,12 @@ int apk_version_result_mask_blob(apk_blob_t op)
 	return r;
 }
 
-int apk_version_result_mask(const char *op)
+int ps4_version_result_mask(const char *op)
 {
-	return apk_version_result_mask_blob(APK_BLOB_STR(op));
+	return ps4_version_result_mask_blob(PS4_BLOB_STR(op));
 }
 
-int apk_version_validate(apk_blob_t ver)
+int ps4_version_validate(ps4_blob_t ver)
 {
 	struct token_state t;
 	for (token_first(&t, &ver); t.token < TOKEN_END; token_next(&t, &ver))
@@ -278,14 +278,14 @@ int apk_version_validate(apk_blob_t ver)
 	return t.token == TOKEN_END;
 }
 
-static int apk_version_compare_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
+static int ps4_version_compare_fuzzy(ps4_blob_t a, ps4_blob_t b, int fuzzy)
 {
 	struct token_state ta, tb;
 
-	if (APK_BLOB_IS_NULL(a) || APK_BLOB_IS_NULL(b)) {
-		if (APK_BLOB_IS_NULL(a) && APK_BLOB_IS_NULL(b))
-			return APK_VERSION_EQUAL;
-		return APK_VERSION_EQUAL | APK_VERSION_GREATER | APK_VERSION_LESS;
+	if (PS4_BLOB_IS_NULL(a) || PS4_BLOB_IS_NULL(b)) {
+		if (ps4_BLOB_IS_NULL(a) && ps4_BLOB_IS_NULL(b))
+			return PS4_VERSION_EQUAL;
+		return PS4_VERSION_EQUAL | PS4_VERSION_GREATER | PS4_VERSION_LESS;
 	}
 
 	for (token_first(&ta, &a), token_first(&tb, &b);
@@ -295,36 +295,36 @@ static int apk_version_compare_fuzzy(apk_blob_t a, apk_blob_t b, int fuzzy)
 		dbg_printf("at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT "> -> %d\n",
 			ta.token, BLOB_PRINTF(ta.value),
 			tb.token, BLOB_PRINTF(tb.value), r);
-		if (r != APK_VERSION_EQUAL) return r;
+		if (r != PS4_VERSION_EQUAL) return r;
 	}
 	dbg_printf("at=%d <" BLOB_FMT "> bt=%d <" BLOB_FMT ">\n",
 		ta.token, BLOB_PRINTF(ta.value),
 		tb.token, BLOB_PRINTF(tb.value));
 
 	/* both have TOKEN_END or TOKEN_INVALID next? or fuzzy matching the prefix*/
-	if (ta.token == tb.token) return APK_VERSION_EQUAL;
-	if (tb.token == TOKEN_END && fuzzy) return APK_VERSION_EQUAL;
+	if (ta.token == tb.token) return PS4_VERSION_EQUAL;
+	if (tb.token == TOKEN_END && fuzzy) return PS4_VERSION_EQUAL;
 
 	/* leading version components and their values are equal,
 	 * now the non-terminating version is greater unless it's a suffix
 	 * indicating pre-release */
-	if (ta.token == TOKEN_SUFFIX && ta.suffix < SUFFIX_NONE) return APK_VERSION_LESS;
-	if (tb.token == TOKEN_SUFFIX && tb.suffix < SUFFIX_NONE) return APK_VERSION_GREATER;
-	if (ta.token > tb.token) return APK_VERSION_LESS;
-	if (tb.token > ta.token) return APK_VERSION_GREATER;
-	return APK_VERSION_EQUAL;
+	if (ta.token == TOKEN_SUFFIX && ta.suffix < SUFFIX_NONE) return PS4_VERSION_LESS;
+	if (tb.token == TOKEN_SUFFIX && tb.suffix < SUFFIX_NONE) return PS4_VERSION_GREATER;
+	if (ta.token > tb.token) return PS4_VERSION_LESS;
+	if (tb.token > ta.token) return PS4_VERSION_GREATER;
+	return PS4_VERSION_EQUAL;
 }
 
-int apk_version_compare(apk_blob_t a, apk_blob_t b)
+int ps4_version_compare(ps4_blob_t a, ps4_blob_t b)
 {
-	return apk_version_compare_fuzzy(a, b, FALSE);
+	return ps4_version_compare_fuzzy(a, b, FALSE);
 }
 
-int apk_version_match(apk_blob_t a, int op, apk_blob_t b)
+int ps4_version_match(ps4_blob_t a, int op, ps4_blob_t b)
 {
 	int ok = 0;
-	if ((op & APK_DEPMASK_ANY) == APK_DEPMASK_ANY ||
-	    apk_version_compare_fuzzy(a, b, op & APK_VERSION_FUZZY) & op) ok = 1;
-	if (op & APK_VERSION_CONFLICT) ok = !ok;
+	if ((op & PS4_DEPMASK_ANY) == PS4_DEPMASK_ANY ||
+	    ps4_version_compare_fuzzy(a, b, op & PS4_VERSION_FUZZY) & op) ok = 1;
+	if (op & PS4_VERSION_CONFLICT) ok = !ok;
 	return ok;
 }

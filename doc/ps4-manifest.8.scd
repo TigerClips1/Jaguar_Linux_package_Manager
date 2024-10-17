@@ -1,16 +1,16 @@
-apk-manifest(8)
+ps4-manifest(8)
 
 # NAME
 
-apk manifest - Show checksums of package contents
+ps4 manifest - Show checksums of package contents
 
 # SYNOPSIS
 
-*apk manifest* [<_options_>...] _packages_...
+*ps4 manifest* [<_options_>...] _packages_...
 
 # DESCRIPTION
 
-*apk manifest* prints the checksums of files in the listed packages. One file
+*ps4 manifest* prints the checksums of files in the listed packages. One file
 is printed per line, the checksum first, followed by a space, and then the path
 to the file.
 
@@ -24,5 +24,5 @@ algorithms are:
 
 # OPTIONS
 
-*apk manifest* does not support any specific options. See *apk*(8) for global
+*ps4 manifest* does not support any specific options. See *ps4*(8) for global
 options.

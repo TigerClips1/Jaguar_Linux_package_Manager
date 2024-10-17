@@ -1,23 +1,23 @@
-apk-verify(8)
+ps4-verify(8)
 
 # NAME
 
-apk verify - verify package integrity and signature
+ps4 verify - verify package integrity and signature
 
 # SYNOPSIS
 
-*apk verify* [<_options_>...] _files_...
+*ps4 verify* [<_options_>...] _files_...
 
 # DESCRIPTION
 
-*apk verify* verifies the integrity of the package files specified, validating
+*ps4 verify* verifies the integrity of the package files specified, validating
 the checksums and cryptographic signature.
 
-*apk verify* prints a summary of the results on stdout, and exits with status
-code zero if all packages were successfully verified. If any failed, *apk
+*ps4 verify* prints a summary of the results on stdout, and exits with status
+code zero if all packages were successfully verified. If any failed, *ps4
 verify* exits with a nonzero status.
 
 # OPTIONS
 
-*apk verify* does not support any specific options. See *apk*(8) for global
+*ps4 verify* does not support any specific options. See *ps4*(8) for global
 options.

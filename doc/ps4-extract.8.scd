@@ -1,16 +1,16 @@
-apk-extract(8)
+ps4-extract(8)
 
 # NAME
 
-apk extract - Extract package file contents
+ps4 extract - Extract package file contents
 
 # SYNOPSIS
 
-*apk extract* [<_options_>...] _packages_...
+*ps4 extract* [<_options_>...] _packages_...
 
 # DESCRIPTION
 
-*apk extract* will extract package contents of specified package file
+*ps4 extract* will extract package contents of specified package file
 to the current or to an explicitly specified directory.
 Each package is extracted without checking dependencies or other metadata.
 

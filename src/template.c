@@ -1,4 +1,4 @@
-/* template.c - Alpine Package Keeper (APK)
+/* template.c - PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -7,7 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#include "apk_database.h"
+#include "ps4_database.h"
 
 
 

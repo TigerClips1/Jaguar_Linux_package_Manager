@@ -1,15 +1,15 @@
 crypto_backend = get_option('crypto_backend')
 url_backend = get_option('url_backend')
 
-libapk_so_version = '2.99.0'
-libapk_src = [
+libps4_so_version = '2.99.0'
+libps4_src = [
 	'adb.c',
 	'adb_comp.c',
 	'adb_walk_adb.c',
 	'adb_walk_genadb.c',
 	'adb_walk_gentext.c',
 	'adb_walk_text.c',
-	'apk_adb.c',
+	'ps4_adb.c',
 	'atom.c',
 	'balloc.c',
 	'blob.c',
@@ -37,35 +37,35 @@ libapk_src = [
 	'version.c',
 ]
 
-libapk_headers = [
+libps4_headers = [
 	'adb.h',
-	'apk_applet.h',
-	'apk_atom.h',
-	'apk_balloc.h',
-	'apk_blob.h',
-	'apk_context.h',
-	'apk_crypto.h',
-        'apk_crypto_@0@.h'.format(crypto_backend),
-	'apk_ctype.h',
-	'apk_database.h',
-	'apk_defines.h',
-	'apk_extract.h',
-	'apk_fs.h',
-	'apk_hash.h',
-	'apk_io.h',
-	'apk_package.h',
-	'apk_pathbuilder.h',
-	'apk_print.h',
-	'apk_provider_data.h',
-	'apk_solver_data.h',
-	'apk_solver.h',
-	'apk_tar.h',
-	'apk_trust.h',
-	'apk_version.h',
+	'ps4_applet.h',
+	'ps4_atom.h',
+	'ps4_balloc.h',
+	'ps4_blob.h',
+	'ps4_context.h',
+	'ps4_crypto.h',
+        'ps4_crypto_@0@.h'.format(crypto_backend),
+	'ps4_ctype.h',
+	'ps4_database.h',
+	'ps4_defines.h',
+	'ps4_extract.h',
+	'ps4_fs.h',
+	'ps4_hash.h',
+	'ps4_io.h',
+	'ps4_package.h',
+	'ps4_pathbuilder.h',
+	'ps4_print.h',
+	'ps4_provider_data.h',
+	'ps4_solver_data.h',
+	'ps4_solver.h',
+	'ps4_tar.h',
+	'ps4_trust.h',
+	'ps4_version.h',
 ]
 
-apk_src = [
-	'apk.c',
+ps4_src = [
+	'ps4.c',
 	'app_adbdump.c',
 	'app_adbsign.c',
 	'app_add.c',
@@ -95,9 +95,9 @@ apk_src = [
 	'applet.c',
 ]
 
-apk_cargs = [
+ps4_cargs = [
 	'-D_ATFILE_SOURCE',
-	'-DAPK_VERSION="' + meson.project_version() + '"',
+	'-DPS4_VERSION="' + meson.project_version() + '"',
 	'-DCRYPTO_USE_@0@'.format(crypto_backend.to_upper()),
 ]
 
@@ -125,82 +125,82 @@ else
 	)
 endif
 
-apk_src += [ generated_help ]
+ps4_src += [ generated_help ]
 
-apk_arch_prefix = get_option('arch_prefix')
-if apk_arch_prefix != ''
-	apk_cargs += ['-DAPK_ARCH_PREFIX="@0@"'.format(apk_arch_prefix)]
+ps4_arch_prefix = get_option('arch_prefix')
+if ps4_arch_prefix != ''
+	ps4_cargs += ['-DPS4_ARCH_PREFIX="@0@"'.format(ps4_arch_prefix)]
 endif
 
-apk_uvol_db_target = get_option('uvol_db_target').strip('/')
-if apk_uvol_db_target != ''
-	apk_cargs += ['-DAPK_UVOL_DB_TARGET="@0@"'.format(apk_uvol_db_target)]
+ps4_uvol_db_target = get_option('uvol_db_target').strip('/')
+if ps4_uvol_db_target != ''
+	ps4_cargs += ['-DPS4_UVOL_DB_TARGET="@0@"'.format(ps4_uvol_db_target)]
 endif
 
 if get_option('zstd')
-	libapk_src += [ 'io_zstd.c' ]
-	apk_cargs += [ '-DHAVE_ZSTD' ]
+	libps4_src += [ 'io_zstd.c' ]
+	ps4_cargs += [ '-DHAVE_ZSTD' ]
 endif
 
-libapk_lib = library(
-	'apk',
-	libapk_src,
-	version: libapk_so_version,
+libps4_lib = library(
+	'ps4',
+	libps4_src,
+	version: libps4_so_version,
 	install: not subproject,
 	dependencies: [
 		libfetch_dep,
 		libportability_dep,
-		apk_deps,
+		ps4_deps,
 	],
-	c_args: apk_cargs,
+	c_args: ps4_cargs,
 )
 
-libapk_dep = declare_dependency(
-	link_with: libapk_lib,
+libps4_dep = declare_dependency(
+	link_with: libps4_lib,
 )
 
 if not subproject
 	pkgc.generate(
-		libapk_lib,
-		name: 'apk',
-		version: libapk_so_version,
+		libps4_lib,
+		name: 'ps4',
+		version: libps4_so_version,
 	)
 
 	install_headers(
-		libapk_headers,
-		subdir: 'apk',
+		libps4_headers,
+		subdir: 'ps4',
 	)
 endif
 
 if(lua_dep.found())
-	luaapk_src = [
-		'lua-apk.c',
+	luaps4_src = [
+		'lua-ps4.c',
 	]
 
-	libluaapk = library(
-		'luaapk',
-		luaapk_src,
+	libluaps4 = library(
+		'luaps4',
+		luaps4_src,
 		dependencies: [
 			lua_dep,
-			libapk_dep,
-			apk_deps,
+			libps4_dep,
+			ps4_deps,
 			libportability_dep.partial_dependency(includes: true),
 		],
 		install: true,
 		install_dir: lua_dep.get_variable(pkgconfig: 'libdir'),
-		c_args: apk_cargs,
+		c_args: ps4_cargs,
 	)
 endif
 
-apk_exe = executable(
-	'apk',
-	apk_src,
+ps4_exe = executable(
+	'ps4',
+	ps4_src,
 	install: not subproject,
 	dependencies: [
-		libapk_dep,
-		apk_deps,
+		libps4_dep,
+		ps4_deps,
 		libfetch_dep.partial_dependency(includes: true),
 		libportability_dep.partial_dependency(includes: true),
 	],
-	c_args: apk_cargs,
+	c_args: ps4_cargs,
 )

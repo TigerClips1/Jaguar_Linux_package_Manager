@@ -1,26 +1,26 @@
-apk-info(8)
+ps4-info(8)
 
 # NAME
 
-apk info - print detailed information about packages
+ps4 info - print detailed information about packages
 
 # SYNOPSIS
 
-*apk info* [<_options_>...] _packages_...
+*ps4 info* [<_options_>...] _packages_...
 
-*apk info* -W _file_
+*ps4 info* -W _file_
 
 # DESCRIPTION
 
-*apk info* prints information known about the listed packages. By default, it
+*ps4 info* prints information known about the listed packages. By default, it
 prints the description, webpage, and installed size of the package (equivalent
-to *apk info -dws*).
+to *ps4 info -dws*).
 
 Each field printed is prefaced by the name of the package and its package
 version, then the field to be displayed, and a newline. The following lines
 display the appropriate information, then an empty line terminates that field.
 
-*apk info -W* _file_ prints the package which owns the specified file.
+*ps4 info -W* _file_ prints the package which owns the specified file.
 
 # OPTIONS
 

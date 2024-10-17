@@ -1,4 +1,4 @@
-/* apk_crypto_openssl.h - Alpine Package Keeper (APK)
+/* ps4_crypto_openssl.h - PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -7,17 +7,17 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_CRYPTO_OPENSSL_H
-#define APK_CRYPTO_OPENSSL_H
+#ifndef PS4_CRYPTO_OPENSSL_H
+#define PS4_CRYPTO_OPENSSL_H
 
 #include <openssl/evp.h>
 
-struct apk_digest_ctx {
+struct ps4_digest_ctx {
 	EVP_MD_CTX *mdctx;
 	uint8_t alg;
 };
 
-struct apk_pkey {
+struct ps4_pkey {
 	uint8_t id[16];
 	EVP_PKEY *key;
 };

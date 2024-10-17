@@ -1,37 +1,37 @@
-apk-cache(8)
+ps4-cache(8)
 
 # NAME
 
-apk cache - manage a local cache of package files
+ps4 cache - manage a local cache of package files
 
 # SYNOPSIS
 
-*apk cache* [<_options_>...] clean
+*ps4 cache* [<_options_>...] clean
 
-*apk cache* [<_options_>...] download [_dependency_...]
+*ps4 cache* [<_options_>...] download [_dependency_...]
 
-*apk cache* [<_options_>...] purge
+*ps4 cache* [<_options_>...] purge
 
-*apk cache* [<_options_>...] sync [_dependency_...]
+*ps4 cache* [<_options_>...] sync [_dependency_...]
 
 # DESCRIPTION
 
 Manage local package cache by removing obsolete packages, or downloading
 missing or newer packages from the repositories.
 
-*apk cache download* will fetch package files from the repositories and store
-them in the cache, which must be enabled upfront (see *apk-cache*(5)). By
+*ps4 cache download* will fetch package files from the repositories and store
+them in the cache, which must be enabled upfront (see *ps4-cache*(5)). By
 default _world_ dependencies are used to determine what to download. If
 _dependency_ arguments are given, they will by default replace the _world_.
 
-*apk cache clean* will remove package files which no longer exist in any
+*ps4 cache clean* will remove package files which no longer exist in any
 repository index. Specifying the global option *--purge* will additionally
 remove all uninstalled package on tmpfs installations, and all packages on
 disk installations.
 
-*apk cache purge* is a synonym for *clean --purge*.
+*ps4 cache purge* is a synonym for *clean --purge*.
 
-*apk cache sync* performs both operations.
+*ps4 cache sync* performs both operations.
 
 # OPTIONS
 

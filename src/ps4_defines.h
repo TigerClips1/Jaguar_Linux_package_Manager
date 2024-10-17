@@ -1,4 +1,4 @@
-/* apk_defines.c - Alpine Package Keeper (APK)
+/* ps4_defines.c - PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -7,8 +7,8 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#ifndef APK_DEFINES_H
-#define APK_DEFINES_H
+#ifndef PS4_DEFINES_H
+#define PS4_DEFINES_H
 
 #include <assert.h>
 #include <endian.h>
@@ -36,43 +36,43 @@
 #endif
 
 enum {
-	APKE_FIRST_VALUE = 1024,
-	APKE_EOF = APKE_FIRST_VALUE,
-	APKE_DNS,
-	APKE_URL_FORMAT,
-	APKE_CRYPTO_ERROR,
-	APKE_CRYPTO_NOT_SUPPORTED,
-	APKE_CRYPTO_KEY_FORMAT,
-	APKE_SIGNATURE_GEN_FAILURE,
-	APKE_SIGNATURE_UNTRUSTED,
-	APKE_SIGNATURE_INVALID,
-	APKE_FORMAT_INVALID,
-	APKE_FORMAT_NOT_SUPPORTED,
-	APKE_PKGNAME_FORMAT,
-	APKE_PKGVERSION_FORMAT,
-	APKE_DEPENDENCY_FORMAT,
-	APKE_ADB_COMPRESSION,
-	APKE_ADB_HEADER,
-	APKE_ADB_VERSION,
-	APKE_ADB_SCHEMA,
-	APKE_ADB_BLOCK,
-	APKE_ADB_SIGNATURE,
-	APKE_ADB_INTEGRITY,
-	APKE_ADB_NO_FROMSTRING,
-	APKE_ADB_LIMIT,
-	APKE_ADB_PACKAGE_FORMAT,
-	APKE_V2DB_FORMAT,
-	APKE_V2PKG_FORMAT,
-	APKE_V2PKG_INTEGRITY,
-	APKE_V2NDX_FORMAT,
-	APKE_PACKAGE_NOT_FOUND,
-	APKE_INDEX_STALE,
-	APKE_FILE_INTEGRITY,
-	APKE_CACHE_NOT_AVAILABLE,
-	APKE_UVOL_NOT_AVAILABLE,
-	APKE_UVOL_ERROR,
-	APKE_UVOL_ROOT,
-	APKE_REMOTE_IO,
+	PS4E_FIRST_VALUE = 1024,
+	PS4E_EOF = PS4E_FIRST_VALUE,
+	PS4E_DNS,
+	PS4E_URL_FORMAT,
+	PS4E_CRYPTO_ERROR,
+	PS4E_CRYPTO_NOT_SUPPORTED,
+	PS4E_CRYPTO_KEY_FORMAT,
+	PS4E_SIGNATURE_GEN_FAILURE,
+	PS4E_SIGNATURE_UNTRUSTED,
+	PS4E_SIGNATURE_INVALID,
+	PS4E_FORMAT_INVALID,
+	PS4E_FORMAT_NOT_SUPPORTED,
+	PS4E_PKGNAME_FORMAT,
+	PS4E_PKGVERSION_FORMAT,
+	PS4E_DEPENDENCY_FORMAT,
+	PS4E_ADB_COMPRESSION,
+	PS4E_ADB_HEADER,
+	PS4E_ADB_VERSION,
+	PS4E_ADB_SCHEMA,
+	PS4E_ADB_BLOCK,
+	PS4E_ADB_SIGNATURE,
+	PS4E_ADB_INTEGRITY,
+	PS4E_ADB_NO_FROMSTRING,
+	PS4E_ADB_LIMIT,
+	PS4E_ADB_PACKAGE_FORMAT,
+	PS4E_V2DB_FORMAT,
+	PS4E_V2PKG_FORMAT,
+	PS4E_V2PKG_INTEGRITY,
+	PS4E_V2NDX_FORMAT,
+	PS4E_PACKAGE_NOT_FOUND,
+	PS4E_INDEX_STALE,
+	PS4E_FILE_INTEGRITY,
+	PS4E_CACHE_NOT_AVAILABLE,
+	PS4E_UVOL_NOT_AVAILABLE,
+	PS4E_UVOL_ERROR,
+	PS4E_UVOL_ROOT,
+	PS4E_REMOTE_IO,
 };
 
 static inline void *ERR_PTR(long error) { return (void*) error; }
@@ -109,64 +109,24 @@ static inline int IS_ERR(const void *ptr) { return (unsigned long)ptr >= (unsign
 #define ROUND_DOWN(x,a)		((x) & ~(a-1))
 #define ROUND_UP(x,a)		(((x)+(a)-1) & ~((a)-1))
 
-/* default architecture for APK packages. */
+/* default architecture for PS4 packages. */
 #if defined(__x86_64__)
-#define APK_DEFAULT_BASE_ARCH        "x86_64"
-#elif defined(__i386__)
-#define APK_DEFAULT_BASE_ARCH        "x86"
-#elif defined(__powerpc__) && !defined(__powerpc64__)
-#define APK_DEFAULT_BASE_ARCH	"ppc"
-#elif defined(__powerpc64__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"ppc64"
-#elif defined(__powerpc64__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"ppc64le"
-#elif defined(__arm__) && defined(__ARM_PCS_VFP) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ && __ARM_ARCH>=7
-#define APK_DEFAULT_BASE_ARCH	"armv7"
-#elif defined(__arm__) && defined(__ARM_PCS_VFP) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"armhf"
-#elif defined(__arm__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"armel"
-#elif defined(__aarch64__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"aarch64"
-#elif defined(__s390x__)
-#define APK_DEFAULT_BASE_ARCH	"s390x"
-#elif defined(__mips64) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"mips64"
-#elif defined(__mips64) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"mips64el"
-#elif defined(__mips__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"mips"
-#elif defined(__mips__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"mipsel"
-#elif defined(__riscv) && __riscv_xlen == 32
-#define APK_DEFAULT_BASE_ARCH	"riscv32"
-#elif defined(__riscv) && __riscv_xlen == 64
-#define APK_DEFAULT_BASE_ARCH	"riscv64"
-#elif defined(__loongarch__) && defined(__loongarch32) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"loongarch32"
-#elif defined(__loongarch__) && defined(__loongarchx32) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"loongarchx32"
-#elif defined(__loongarch__) && defined(__loongarch64) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-#define APK_DEFAULT_BASE_ARCH	"loongarch64"
-#elif defined(__ARCHS__)
-#define APK_DEFAULT_BASE_ARCH	"archs"
-#elif defined(__ARC700__)
-#define APK_DEFAULT_BASE_ARCH	"arc700"
+#define ps4_DEFAULT_BASE_ARCH        "x86_64"
 #else
-#error APK_DEFAULT_BASE_ARCH not detected for this architecture
+#error PS4_DEFAULT_BASE_ARCH not detected for this architecture
 #endif
 
-#ifndef APK_ARCH_PREFIX
-#define APK_DEFAULT_ARCH	APK_DEFAULT_BASE_ARCH
+#ifndef PS4_ARCH_PREFIX
+#define PS4_DEFAULT_ARCH	PS4_DEFAULT_BASE_ARCH
 #else
-#define APK_DEFAULT_ARCH	APK_ARCH_PREFIX "-" APK_DEFAULT_BASE_ARCH
+#define PS4_DEFAULT_ARCH	PS4_ARCH_PREFIX "-" PS4_DEFAULT_BASE_ARCH
 #endif
 
-#define APK_MAX_REPOS		32	/* see struct apk_package */
-#define APK_MAX_TAGS		16	/* see solver; unsigned short */
-#define APK_CACHE_CSUM_BYTES	4
+#define PS4_MAX_REPOS		32	/* see struct ps4_package */
+#define PS4_MAX_TAGS		16	/* see solver; unsigned short */
+#define PS4_CACHE_CSUM_BYTES	4
 
-static inline size_t apk_calc_installed_size(size_t size)
+static inline size_t ps4_calc_installed_size(size_t size)
 {
 	const size_t bsize = 4 * 1024;
 
@@ -199,72 +159,72 @@ static inline uint32_t get_unaligned32(const void *ptr)
 #endif
 }
 
-typedef void (*apk_progress_cb)(void *cb_ctx, size_t);
+typedef void (*ps4_progress_cb)(void *cb_ctx, size_t);
 
-time_t apk_get_build_time(void);
+time_t ps4_get_build_time(void);
 
-struct apk_array {
+struct ps4_array {
 	uint32_t num;
 	uint32_t capacity : 31;
 	uint32_t allocated : 1;
 };
 
-extern const struct apk_array _apk_array_empty;
+extern const struct ps4_array _ps4_array_empty;
 
-void *_apk_array_resize(const struct apk_array *hdr, size_t item_size, size_t num, size_t cap);
-void *_apk_array_copy(const struct apk_array *hdr, size_t item_size);
-void *_apk_array_grow(const struct apk_array *hdr, size_t item_size);
-void _apk_array__free(const struct apk_array *hdr);
+void *_ps4_array_resize(const struct ps4_array *hdr, size_t item_size, size_t num, size_t cap);
+void *_ps4_array_copy(const struct ps4_array *hdr, size_t item_size);
+void *_ps4_array_grow(const struct ps4_array *hdr, size_t item_size);
+void _ps4_array__free(const struct ps4_array *hdr);
 
-static inline uint32_t _apk_array_len(const struct apk_array *hdr) { return hdr->num; }
-static inline void _apk_array_free(const struct apk_array *hdr) {
-	if (hdr->allocated) _apk_array__free(hdr);
+static inline uint32_t _ps4_array_len(const struct ps4_array *hdr) { return hdr->num; }
+static inline void _ps4_array_free(const struct ps4_array *hdr) {
+	if (hdr->allocated) _ps4_array__free(hdr);
 }
-static inline struct apk_array *_apk_array_truncate(struct apk_array *hdr, size_t num) {
+static inline struct ps4_array *_ps4_array_truncate(struct ps4_array *hdr, size_t num) {
 	assert(num <= hdr->num);
 	if (hdr->num != num) hdr->num = num;
 	return hdr;
 }
 
-#define apk_array_len(array)		_apk_array_len(&(array)->hdr)
-#define apk_array_truncate(array, num)	_apk_array_truncate(&(array)->hdr, num)
-#define apk_array_reset(array)		(typeof(array))((array)->hdr.allocated ? apk_array_truncate(array, 0) : &_apk_array_empty)
-#define apk_array_item_size(array)	sizeof((array)->item[0])
-#define apk_array_qsort(array, compare)	qsort((array)->item, (array)->hdr.num, apk_array_item_size(array), compare)
+#define ps4_array_len(array)		_ps4_array_len(&(array)->hdr)
+#define ps4_array_truncate(array, num)	_ps4_array_truncate(&(array)->hdr, num)
+#define ps4_array_reset(array)		(typeof(array))((array)->hdr.allocated ? ps4_array_truncate(array, 0) : &_ps4_array_empty)
+#define ps4_array_item_size(array)	sizeof((array)->item[0])
+#define ps4_array_qsort(array, compare)	qsort((array)->item, (array)->hdr.num, ps4_array_item_size(array), compare)
 
-#define APK_ARRAY(array_type_name, item_type_name)			\
+#define ps4_ARRAY(array_type_name, item_type_name)			\
 	struct array_type_name {					\
-		struct apk_array hdr;					\
+		struct ps4_array hdr;					\
 		item_type_name item[];					\
 	};								\
 	static inline void						\
 	array_type_name##_init(struct array_type_name **a) {		\
-		*a = (void *) &_apk_array_empty;			\
+		*a = (void *) &_ps4_array_empty;			\
 	}								\
 	static inline void						\
 	array_type_name##_free(struct array_type_name **a) {		\
-		_apk_array_free(&(*a)->hdr);				\
-		*a = (void *) &_apk_array_empty;			\
+		_ps4_array_free(&(*a)->hdr);				\
+		*a = (void *) &_ps4_array_empty;			\
 	}								\
 	static inline void						\
 	array_type_name##_resize(struct array_type_name **a, size_t num, size_t cap) { \
-		*a = _apk_array_resize(&(*a)->hdr, apk_array_item_size(*a), num, cap);\
+		*a = _ps4_array_resize(&(*a)->hdr, ps4_array_item_size(*a), num, cap);\
 	}								\
 	static inline void						\
 	array_type_name##_copy(struct array_type_name **dst, struct array_type_name *src) { \
 		if (*dst == src) return;				\
-		_apk_array_free(&(*dst)->hdr);				\
-		*dst = _apk_array_copy(&src->hdr, apk_array_item_size(src)); \
+		_ps4_array_free(&(*dst)->hdr);				\
+		*dst = _ps4_array_copy(&src->hdr, ps4_array_item_size(src)); \
 	}								\
 	static inline item_type_name *					\
 	array_type_name##_add(struct array_type_name **a, item_type_name item) {\
-		if ((*a)->hdr.num >= (*a)->hdr.capacity) *a = _apk_array_grow(&(*a)->hdr, apk_array_item_size(*a)); \
+		if ((*a)->hdr.num >= (*a)->hdr.capacity) *a = _ps4_array_grow(&(*a)->hdr, ps4_array_item_size(*a)); \
 		item_type_name *nitem = &(*a)->item[((*a)->hdr.num)++];	\
 		*nitem = item;						\
 		return nitem;						\
 	}
 
-APK_ARRAY(apk_string_array, char *);
+PS4_ARRAY(ps4_string_array, char *);
 
 #define foreach_array_item(iter, array) \
 	for (iter = &(array)->item[0]; iter < &(array)->item[(array)->hdr.num]; iter++)

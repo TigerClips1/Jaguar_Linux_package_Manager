@@ -98,6 +98,6 @@ extern const struct adb_object_schema
 	schema_index, schema_idb;
 
 /* */
-int apk_dep_split(apk_blob_t *b, apk_blob_t *bdep);
-adb_val_t adb_wo_pkginfo(struct adb_obj *obj, unsigned int f, apk_blob_t val);
+int ps4_dep_split(ps4_blob_t *b, ps4_blob_t *bdep);
+adb_val_t adb_wo_pkginfo(struct adb_obj *obj, unsigned int f, ps4_blob_t val);
 unsigned int adb_pkg_field_index(char f);

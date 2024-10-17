@@ -1,19 +1,19 @@
-apk-index(8)
+ps4-index(8)
 
 # NAME
 
-apk index - create repository index file from packages
+ps4 index - create repository index file from packages
 
 # SYNOPSIS
 
-*apk index* [<_options_>...] _packages_...
+*ps4 index* [<_options_>...] _packages_...
 
 # DESCRIPTION
 
-*apk index* creates a repository index from a list of package files. See
-*apk-repositories*(8) for more information on repository indicies.
+*ps4 index* creates a repository index from a list of package files. See
+*ps4-repositories*(8) for more information on repository indicies.
 
-Generally, the resulting index must be cryptographically signed before *apk*
+Generally, the resulting index must be cryptographically signed before *ps4*
 will accept it. See *abuild-sign*(1) for details.
 
 # OPTIONS
@@ -48,4 +48,4 @@ will accept it. See *abuild-sign*(1) for details.
 # ENVIRONMENT
 
 *SOURCE_DATE_EPOCH*
-	Used as the build time for tar file headers in APKINDEX.tar.gz.
+	Used as the build time for tar file headers in ps4INDEX.tar.gz.

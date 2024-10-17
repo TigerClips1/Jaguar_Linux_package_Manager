@@ -1,12 +1,12 @@
-apk-package(5)
+ps4-package(5)
 
 # NAME
 
-apk package - apk package metadata fields
+ps4 package - ps4 package metadata fields
 
 # DESCRIPTION
 
-The apk package metadata contains the package info metadata substructure
+The ps4 package metadata contains the package info metadata substructure
 and various other metadata fields.
 
 The package info metadata structure is the portion of package metadata which
@@ -20,14 +20,14 @@ database. These fields are available only if the package is installed.
 The remainder of the document explains each field with the notation:
 *v3-field-name* (*v2-pkginfo-field-name*, *v2-index-character*).
 
-It is mentioned explicitly if APK uses each fields for something meaningful.
-Some fields are not used internally by APK and from the APK point of view
+It is mentioned explicitly if ps4 uses each fields for something meaningful.
+Some fields are not used internally by ps4 and from the ps4 point of view
 are just blobs of data associated with specified name which are meaningful
 the user.
 
 # PACKAGE NAMES AND VERSIONS
 
-APK will often display concatenation of *name*-*version* in its verbose
+ps4 will often display concatenation of *name*-*version* in its verbose
 output mode. The rule below on how a valid version number is defined allow
 that this format can be uniquely splitted back to the two components by
 finding the *last* occurance of *-[0-9]*. The dash in the beginning of this
@@ -48,7 +48,7 @@ Unfortunately it is not possible to deduce if a given string is of format
 	Package version. The Alpine version specification originally
 	followed the Gentoo package version specification.
 
-	Currently the APK version specification is as follows:
+	Currently the ps4 version specification is as follows:
 	*number{.number}...{letter}{\_suffix{number}}...{~hash}{-r#}*
 
 	Each *number* component is a sequence of digits (0-9).
@@ -70,7 +70,7 @@ Unfortunately it is not possible to deduce if a given string is of format
 	Hash of the package meta data. This field is present only in
 	the index copy of the package info.
 
-	APK uses this fields in multiple ways:
+	ps4 uses this fields in multiple ways:
 	- authenticate and verify the package against an index
 	- determine if same identical package is available from multiple
 	  repositories
@@ -79,11 +79,11 @@ Unfortunately it is not possible to deduce if a given string is of format
 
 *description* (*pkgdesc*, *T*)
 	The description is a single line describing the package.
-	APK displays this string in various command querying information about
+	ps4 displays this string in various command querying information about
 	the package, repository or installed database.
 
 *arch* (*arch*, *A*)
-	Package architecture for which the package was built. Currently apk
+	Package architecture for which the package was built. Currently ps4
 	uses the following default architectures:
 	- noarch
 	- aarch64
@@ -105,22 +105,22 @@ Unfortunately it is not possible to deduce if a given string is of format
 	- x86
 	- x86_64
 
-	APK currently uses the architecture to construct the package download
+	ps4 currently uses the architecture to construct the package download
 	URL from a repository base path.
 
-	The APK does not currently validate package architecture against the
+	The ps4 does not currently validate package architecture against the
 	running system or the database's architecture. However, this will be
-	soon changed that APK will consider only compatible packages for
+	soon changed that ps4 will consider only compatible packages for
 	installation.
 
 *license* (*license*, *L*)
-	Package license. This is informative field for the user and APK does
+	Package license. This is informative field for the user and ps4 does
 	not validate or use this field internally. It is recommended to use
 	standard license descriptors such as SPDX.
 
 *origin* (*origin*, *o*)
-	Package's source package name. APK uses this field as follows:
-	- If two separate binary packages share same source package, APK allows
+	Package's source package name. ps4 uses this field as follows:
+	- If two separate binary packages share same source package, ps4 allows
 	  overwriting the package to overwrite files from another package. This
 	  serves the purpose of moving files from one subpackage to another.
 	- Several query commands allow printing or matching the original package name.
@@ -138,23 +138,23 @@ Unfortunately it is not possible to deduce if a given string is of format
 	Repository commit hash from which the package was built from.
 
 *build-time* (*builddate*, *t*)
-	UNIX timestamp when the package was built. Apk fetch can filter packages
+	UNIX timestamp when the package was built. ps4 fetch can filter packages
 	to download based on the build time. This is useful to download incremental
 	repository snapshots.
 
 *installed-size* (*size*, *I*)
 	Estimate of how much disk space is required when the package is installed.
-	APK displays this information in various places, and based the commit
+	ps4 displays this information in various places, and based the commit
 	transaction disk usage changed on this information.
 
 	Packages with the installed size being zero as meta packages that do not
-	have any other data than indexed data. APK may choose to not download the
+	have any other data than indexed data. ps4 may choose to not download the
 	package and handle everything based on the data available in the index.
 
 *file-size* (*S*)
 	This field is present meaningful only in the repository index copy of
-	the package info. APK index will fill this field at indexing time with the
-	size of the package file (.apk). Technically this field should be a repository
+	the package info. ps4 index will fill this field at indexing time with the
+	size of the package file (.ps4). Technically this field should be a repository
 	index specific field, and such change might be done in the future.
 
 *provider-priority* (*provider_priority*, *k*)
@@ -167,15 +167,15 @@ Unfortunately it is not possible to deduce if a given string is of format
 
 *depends* (*depend*, *D*)
 	List of dependencies for the package. Installing this package will
-	require APK to first satisfy the list of all its dependencies.
+	require ps4 to first satisfy the list of all its dependencies.
 
-	The dependencies are used by various APK components:
+	The dependencies are used by various ps4 components:
 	- The solver will try to find a solution that all package dependencies
 	  are satisfied (as well as the world dependencies)
-	- When apk is committing changes to the file system, it will install
+	- When ps4 is committing changes to the file system, it will install
 	  or remove packages in such order that all dependencies of the package
 	  will be satisfied (assuming there are no circular dependencies)
-	- When apk runs the package trigger scripts, they will be ordered
+	- When ps4 runs the package trigger scripts, they will be ordered
 	  so that the triggers of all dependencies before running the trigger
 	  for this package
 
@@ -205,17 +205,17 @@ Unfortunately it is not possible to deduce if a given string is of format
 	- the package is not considered to own provided name
 	- multiple packages provided the same name without a version are
 	  allowed to be installed simultaneously
-	- apk internally considers a package name with only non-versioned
+	- ps4 internally considers a package name with only non-versioned
 	  providers as a "virtual package name"
 
 *replaces* (*r*)
 	List of package names this package is allowed to replace files from.
-	Normally apk treats it as an error if multiple packages contain the
+	Normally ps4 treats it as an error if multiple packages contain the
 	same file. Specifying a replaces declartion allows the package to
 	silently overwrite files from the listed packages.
 
 *install-if* (*install_if*, *i*)
-	APK will automatically select and install the package if all of
+	ps4 will automatically select and install the package if all of
 	the install-if dependencies are satisfied. There should be at least
 	two dependencies in *install_if* dependencies, and one of them must
 	have a equality (*=*) operator.
@@ -262,7 +262,7 @@ Unfortunately it is not possible to deduce if a given string is of format
 	- post-upgrade
 
 *triggers*
-	List of directory globs. APK will execute the trigger script with
+	List of directory globs. ps4 will execute the trigger script with
 	list of matched directories when any action (package installation,
 	removal) has modified content of that directory. When package is
 	being fixed or installed it will get list of all matching directories.
@@ -274,4 +274,4 @@ Unfortunately it is not possible to deduce if a given string is of format
 
 # SEE ALSO
 
-*abuild*(1), *apk*(1), *apk-v2*(5), *apk-v3*(5)
+*abuild*(1), *ps4*(1), *ps4-v2*(5), *ps4-v3*(5)

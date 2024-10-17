@@ -1,4 +1,4 @@
-/* tar.c - Alpine Package Keeper (APK)
+/* tar.c - PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -11,8 +11,8 @@
 #include <sys/sysmacros.h>
 #include <limits.h>
 
-#include "apk_defines.h"
-#include "apk_tar.h"
+#include "ps4_defines.h"
+#include "ps4_tar.h"
 
 struct tar_header {
 	/* ustar header, Posix 1003.1 */
@@ -34,16 +34,16 @@ struct tar_header {
 	char padding[12];   /* 500-511 */
 };
 
-#define TAR_BLOB(s)		APK_BLOB_PTR_LEN(s, strnlen(s, sizeof(s)))
+#define TAR_BLOB(s)		PS4_BLOB_PTR_LEN(s, strnlen(s, sizeof(s)))
 #define GET_OCTAL(s,r)		get_octal(s, sizeof(s), r)
 #define PUT_OCTAL(s,v,hz)	put_octal(s, sizeof(s), v, hz)
 
 static unsigned int get_octal(char *s, size_t l, int *r)
 {
-	apk_blob_t b = APK_BLOB_PTR_LEN(s, l);
-	unsigned int val = apk_blob_pull_uint(&b, 8);
+	ps4_blob_t b = PS4_BLOB_PTR_LEN(s, l);
+	unsigned int val = ps4_blob_pull_uint(&b, 8);
 	while (b.len >= 1 && (b.ptr[0] == 0 || b.ptr[0] == 0x20)) b.ptr++, b.len--;
-	if (b.len != 0) *r = -APKE_V2PKG_FORMAT;
+	if (b.len != 0) *r = -PS4E_V2PKG_FORMAT;
 	return val;
 }
 
@@ -60,7 +60,7 @@ static void put_octal(char *s, size_t l, size_t value, int has_zero)
 		*(ptr--) = '0';
 }
 
-static int blob_realloc(apk_blob_t *b, size_t newsize)
+static int blob_realloc(ps4_blob_t *b, size_t newsize)
 {
 	char *tmp;
 	if (b->len >= newsize) return 0;
@@ -71,81 +71,81 @@ static int blob_realloc(apk_blob_t *b, size_t newsize)
 	return 0;
 }
 
-static void handle_extended_header(struct apk_file_info *fi, apk_blob_t hdr)
+static void handle_extended_header(struct ps4_file_info *fi, ps4_blob_t hdr)
 {
-	apk_blob_t name, value;
+	ps4_blob_t name, value;
 
 	while (1) {
 		char *start = hdr.ptr;
-		unsigned int len = apk_blob_pull_uint(&hdr, 10);
-		apk_blob_pull_char(&hdr, ' ');
-		if (!apk_blob_split(hdr, APK_BLOB_STR("="), &name, &hdr)) break;
+		unsigned int len = ps4_blob_pull_uint(&hdr, 10);
+		ps4_blob_pull_char(&hdr, ' ');
+		if (!ps4_blob_split(hdr, PS4_BLOB_STR("="), &name, &hdr)) break;
 		if (len < hdr.ptr - start + 1) break;
 		len -= hdr.ptr - start + 1;
 		if (hdr.len < len) break;
-		value = APK_BLOB_PTR_LEN(hdr.ptr, len);
-		hdr = APK_BLOB_PTR_LEN(hdr.ptr+len, hdr.len-len);
-		apk_blob_pull_char(&hdr, '\n');
-		if (APK_BLOB_IS_NULL(hdr)) break;
+		value = PS4_BLOB_PTR_LEN(hdr.ptr, len);
+		hdr = PS4_BLOB_PTR_LEN(hdr.ptr+len, hdr.len-len);
+		ps4_blob_pull_char(&hdr, '\n');
+		if (PS4_BLOB_IS_NULL(hdr)) break;
 		value.ptr[value.len] = 0;
 
-		if (apk_blob_compare(name, APK_BLOB_STR("path")) == 0) {
+		if (ps4_blob_compare(name, PS4_BLOB_STR("path")) == 0) {
 			fi->name = value.ptr;
-		} else if (apk_blob_compare(name, APK_BLOB_STR("linkpath")) == 0) {
+		} else if (ps4_blob_compare(name, PS4_BLOB_STR("linkpath")) == 0) {
 			fi->link_target = value.ptr;
-		} else if (apk_blob_pull_blob_match(&name, APK_BLOB_STR("SCHILY.xattr."))) {
+		} else if (ps4_blob_pull_blob_match(&name, PS4_BLOB_STR("SCHILY.xattr."))) {
 			name.ptr[name.len] = 0;
-			apk_xattr_array_add(&fi->xattrs, (struct apk_xattr) {
+			ps4_xattr_array_add(&fi->xattrs, (struct ps4_xattr) {
 				.name = name.ptr,
 				.value = value,
 			});
-		} else if (apk_blob_pull_blob_match(&name, APK_BLOB_STR("APK-TOOLS.checksum."))) {
-			int alg = APK_DIGEST_NONE;
-			if (apk_blob_compare(name, APK_BLOB_STR("SHA1")) == 0)
-				alg = APK_DIGEST_SHA1;
-			else if (apk_blob_compare(name, APK_BLOB_STR("MD5")) == 0)
-				alg = APK_DIGEST_MD5;
+		} else if (ps4_blob_pull_blob_match(&name, PS4_BLOB_STR("PS4-TOOLS.checksum."))) {
+			int alg = PS4_DIGEST_NONE;
+			if (ps4_blob_compare(name, PS4_BLOB_STR("SHA1")) == 0)
+				alg = PS4_DIGEST_SHA1;
+			else if (ps4_blob_compare(name, PS4_BLOB_STR("MD5")) == 0)
+				alg = PS4_DIGEST_MD5;
 			if (alg > fi->digest.alg) {
-				apk_digest_set(&fi->digest, alg);
-				apk_blob_pull_hexdump(&value, APK_DIGEST_BLOB(fi->digest));
-				if (APK_BLOB_IS_NULL(value)) apk_digest_reset(&fi->digest);
+				ps4_digest_set(&fi->digest, alg);
+				ps4_blob_pull_hexdump(&value, PS4_DIGEST_BLOB(fi->digest));
+				if (PS4_BLOB_IS_NULL(value)) ps4_digest_reset(&fi->digest);
 			}
 		}
 	}
 }
 
-int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
-		  void *ctx, struct apk_id_cache *idc)
+int ps4_tar_parse(struct ps4_istream *is, ps4_archive_entry_parser parser,
+		  void *ctx, struct ps4_id_cache *idc)
 {
-	struct apk_file_info entry;
-	struct apk_segment_istream segment;
+	struct ps4_file_info entry;
+	struct ps4_segment_istream segment;
 	struct tar_header buf;
 	int end = 0, r;
 	size_t toskip, paxlen = 0;
-	apk_blob_t pax = APK_BLOB_NULL, longname = APK_BLOB_NULL;
+	ps4_blob_t pax = PS4_BLOB_NULL, longname = PS4_BLOB_NULL;
 	char filename[sizeof buf.name + sizeof buf.prefix + 2];
 
 	if (IS_ERR(is)) return PTR_ERR(is);
 
 	memset(&entry, 0, sizeof(entry));
-	apk_xattr_array_init(&entry.xattrs);
+	ps4_xattr_array_init(&entry.xattrs);
 	entry.name = buf.name;
-	while ((r = apk_istream_read_max(is, &buf, 512)) == 512) {
+	while ((r = ps4_istream_read_max(is, &buf, 512)) == 512) {
 		if (buf.name[0] == '\0') {
 			if (end) break;
 			end++;
 			continue;
 		}
 		if (memcmp(buf.magic, "ustar", 5) != 0) {
-			r = -APKE_V2PKG_FORMAT;
+			r = -PS4E_V2PKG_FORMAT;
 			goto err;
 		}
 
 		r = 0;
-		entry = (struct apk_file_info){
+		entry = (struct ps4_file_info){
 			.size  = GET_OCTAL(buf.size, &r),
-			.uid   = apk_id_cache_resolve_uid(idc, TAR_BLOB(buf.uname), GET_OCTAL(buf.uid, &r)),
-			.gid   = apk_id_cache_resolve_gid(idc, TAR_BLOB(buf.gname), GET_OCTAL(buf.gid, &r)),
+			.uid   = ps4_id_cache_resolve_uid(idc, TAR_BLOB(buf.uname), GET_OCTAL(buf.uid, &r)),
+			.gid   = ps4_id_cache_resolve_gid(idc, TAR_BLOB(buf.gname), GET_OCTAL(buf.gid, &r)),
 			.mode  = GET_OCTAL(buf.mode, &r) & 07777,
 			.mtime = GET_OCTAL(buf.mtime, &r),
 			.name  = entry.name,
@@ -165,20 +165,20 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 		}
 		buf.mode[0] = 0; /* to nul terminate 100-byte buf.name */
 		buf.magic[0] = 0; /* to nul terminate 100-byte buf.linkname */
-		apk_array_truncate(entry.xattrs, 0);
+		ps4_array_truncate(entry.xattrs, 0);
 
 		if (entry.size >= SSIZE_MAX-512) goto err;
 
 		if (paxlen) {
-			handle_extended_header(&entry, APK_BLOB_PTR_LEN(pax.ptr, paxlen));
-			apk_fileinfo_hash_xattr(&entry, APK_DIGEST_SHA1);
+			handle_extended_header(&entry, PS4_BLOB_PTR_LEN(pax.ptr, paxlen));
+			ps4_fileinfo_hash_xattr(&entry, PS4_DIGEST_SHA1);
 		}
 
 		toskip = (entry.size + 511) & -512;
 		switch (buf.typeflag) {
 		case 'L': /* GNU long name extension */
 			if ((r = blob_realloc(&longname, entry.size+1)) != 0 ||
-			    (r = apk_istream_read(is, longname.ptr, entry.size)) < 0)
+			    (r = ps4_istream_read(is, longname.ptr, entry.size)) < 0)
 				goto err;
 			longname.ptr[entry.size] = 0;
 			entry.name = longname.ptr;
@@ -215,7 +215,7 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 		case 'x': /* file specific pax header */
 			paxlen = entry.size;
 			if ((r = blob_realloc(&pax, (paxlen + 511) & -512)) != 0 ||
-			    (r = apk_istream_read(is, pax.ptr, paxlen)) < 0)
+			    (r = ps4_istream_read(is, pax.ptr, paxlen)) < 0)
 				goto err;
 			toskip -= entry.size;
 			break;
@@ -230,41 +230,41 @@ int apk_tar_parse(struct apk_istream *is, apk_archive_entry_parser parser,
 		}
 
 		if (entry.mode & S_IFMT) {
-			apk_istream_segment(&segment, is, entry.size, entry.mtime);
+			ps4_istream_segment(&segment, is, entry.size, entry.mtime);
 			r = parser(ctx, &entry, &segment.is);
 			if (r != 0) goto err;
-			apk_istream_close(&segment.is);
+			ps4_istream_close(&segment.is);
 
 			entry.name = buf.name;
 			toskip -= entry.size;
 			paxlen = 0;
 		}
 
-		if (toskip && (r = apk_istream_read(is, NULL, toskip)) < 0)
+		if (toskip && (r = ps4_istream_read(is, NULL, toskip)) < 0)
 			goto err;
 	}
 
 	/* Read remaining end-of-archive records, to ensure we read all of
 	 * the file. The underlying istream is likely doing checksumming. */
 	if (r == 512) {
-		while ((r = apk_istream_read_max(is, &buf, 512)) == 512) {
+		while ((r = ps4_istream_read_max(is, &buf, 512)) == 512) {
 			if (buf.name[0] != 0) break;
 		}
 	}
 	if (r == 0) goto ok;
 err:
 	/* Check that there was no partial (or non-zero) record */
-	if (r >= 0) r = -APKE_EOF;
+	if (r >= 0) r = -PS4E_EOF;
 ok:
 	free(pax.ptr);
 	free(longname.ptr);
-	apk_xattr_array_free(&entry.xattrs);
-	return apk_istream_close_error(is, r);
+	ps4_xattr_array_free(&entry.xattrs);
+	return ps4_istream_close_error(is, r);
 }
 
-static void apk_tar_fill_header(struct tar_header *hdr, char typeflag,
+static void ps4_tar_fill_header(struct tar_header *hdr, char typeflag,
 				const char *name, int size,
-				const struct apk_file_info *ae)
+				const struct ps4_file_info *ae)
 {
 	const unsigned char *src;
 	int chksum, i;
@@ -291,31 +291,31 @@ static void apk_tar_fill_header(struct tar_header *hdr, char typeflag,
 	put_octal(hdr->chksum, sizeof(hdr->chksum)-1, chksum, 1);
 }
 
-static int apk_tar_write_longname_entry(struct apk_ostream *os,
-					const struct apk_file_info *ae)
+static int ps4_tar_write_longname_entry(struct ps4_ostream *os,
+					const struct ps4_file_info *ae)
 {
 	struct tar_header buf;
 
 	memset(&buf, 0, sizeof(buf));
 
 	/* GNU long name extension header */
-	apk_tar_fill_header(&buf, 'L', "././@LongLink", strlen(ae->name), ae);
+	ps4_tar_fill_header(&buf, 'L', "././@LongLink", strlen(ae->name), ae);
 
 	/* Write Header */
-	if (apk_ostream_write(os, &buf, sizeof(buf)) < 0)
+	if (ps4_ostream_write(os, &buf, sizeof(buf)) < 0)
 		return -1;
 
 	/* Write filename */
-	if (apk_ostream_write(os, ae->name, strlen(ae->name) + 1) < 0)
+	if (ps4_ostream_write(os, ae->name, strlen(ae->name) + 1) < 0)
 		return -1;
 
-	if (apk_tar_write_padding(os, strlen(ae->name) + 1) < 0)
+	if (ps4_tar_write_padding(os, strlen(ae->name) + 1) < 0)
 		return -1;
 
 	return 0;
 }
 
-int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
+int ps4_tar_write_entry(struct ps4_ostream *os, const struct ps4_file_info *ae,
 			const char *data)
 {
 	struct tar_header buf;
@@ -326,37 +326,37 @@ int apk_tar_write_entry(struct apk_ostream *os, const struct apk_file_info *ae,
 			return -1;
 
 		if (ae->name && strlen(ae->name) > sizeof buf.name - 1 &&
-		    apk_tar_write_longname_entry(os, ae) < 0)
+		    ps4_tar_write_longname_entry(os, ae) < 0)
 		    	return -1;
 
-		apk_tar_fill_header(&buf, '0', ae->name, ae->size, ae);
+		ps4_tar_fill_header(&buf, '0', ae->name, ae->size, ae);
 	}
 
-	if (apk_ostream_write(os, &buf, sizeof(buf)) < 0)
+	if (ps4_ostream_write(os, &buf, sizeof(buf)) < 0)
 		return -1;
 
 	if (ae == NULL) {
 		/* End-of-archive is two empty headers */
-		if (apk_ostream_write(os, &buf, sizeof(buf)) < 0)
+		if (ps4_ostream_write(os, &buf, sizeof(buf)) < 0)
 			return -1;
 	} else if (data != NULL) {
-		if (apk_ostream_write(os, data, ae->size) < 0)
+		if (ps4_ostream_write(os, data, ae->size) < 0)
 			return -1;
-		if (apk_tar_write_padding(os, ae->size) != 0)
+		if (ps4_tar_write_padding(os, ae->size) != 0)
 			return -1;
 	}
 
 	return 0;
 }
 
-int apk_tar_write_padding(struct apk_ostream *os, int size)
+int ps4_tar_write_padding(struct ps4_ostream *os, int size)
 {
 	static char padding[512];
 	int pad;
 
 	pad = 512 - (size & 511);
 	if (pad != 512 &&
-	    apk_ostream_write(os, padding, pad) < 0)
+	    ps4_ostream_write(os, padding, pad) < 0)
 		return -1;
 
 	return 0;

@@ -1,15 +1,15 @@
-apk-world(5)
+ps4-world(5)
 
 # NAME
 
-*/etc/apk/world* - list of constraints for package selection
+*/etc/ps4/world* - list of constraints for package selection
 
 # DESCRIPTION
 
-At /etc/apk/world, apk maintains the _world_, that is, a list of constraints
+At /etc/ps4/world, ps4 maintains the _world_, that is, a list of constraints
 the package selection needs to fulfill.
 
-If you edit this file manually, you should run *apk-fix*(8) to apply the
+If you edit this file manually, you should run *ps4-fix*(8) to apply the
 changes.
 
 # PACKAGE SPECIFICATION
@@ -22,7 +22,7 @@ an upgrade is requested or a world constraint or package dependency requires
 an alternate version.
 
 To enable selection from a tagged repository, use the format *name@tag*,
-e.g. *busybox@edge*. See *apk-repositories*(5) for details on tagged package
+e.g. *busybox@edge*. See *ps4-repositories*(5) for details on tagged package
 repositories. Untagged repositories are also considered for constraints with
 a tag. The tag is inherited to all dependencies as an allowed repository.
 That is, the dependencies are selected from the tagged repository if the

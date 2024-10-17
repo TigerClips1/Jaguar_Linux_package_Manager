@@ -1,18 +1,18 @@
-apk-cache(5)
+ps4-cache(5)
 
 # NAME
 
-*/etc/apk/cache* - local cache of package files
+*/etc/ps4/cache* - local cache of package files
 
 # DESCRIPTION
 
-If */etc/apk/cache* is a symlink to a local directory, *apk*(8) will use it as
+If */etc/ps4/cache* is a symlink to a local directory, *ps4*(8) will use it as
 a local cache for downloaded package files and repository indicies. The cache
 must not reside on a tmpfs.
 
-To enable the apk cache, run the following commands as root:
+To enable the ps4 cache, run the following commands as root:
 
-mkdir -p /var/cache/apk++
-ln -s /var/cache/apk /etc/apk/cache
+mkdir -p /var/cache/ps4++
+ln -s /var/cache/ps4 /etc/ps4/cache
 
-For information on cache maintenance, see *apk-cache*(8).
+For information on cache maintenance, see *ps4-cache*(8).

@@ -1,16 +1,16 @@
-apk-audit(8)
+ps4-audit(8)
 
 # NAME
 
-apk audit - audit directories for changes
+ps4 audit - audit directories for changes
 
 # SYNOPSIS
 
-*apk audit* [<_options_>...] _directories_...
+*ps4 audit* [<_options_>...] _directories_...
 
 # DESCRIPTION
 
-*apk audit* audits the system or specified directories for changes compared to
+*ps4 audit* audits the system or specified directories for changes compared to
 the package database.
 
 The audit can be done against configuration files only (*--backup*) to generate
@@ -73,10 +73,10 @@ then the affected path or details. The changes detected are:
 	is printed.
 
 	To repair all packages with modified files, one could use:
-		apk audit --packages -q | xargs apk fix
+		ps4 audit --packages -q | xargs ps4 fix
 
 *--protected-paths* _FILE_
-	Use given FILE for protected paths listings. This also makes apk ignore
+	Use given FILE for protected paths listings. This also makes ps4 ignore
 	the regular protected_paths.d directories.
 
 *--system*

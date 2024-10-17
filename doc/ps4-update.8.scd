@@ -1,23 +1,23 @@
-apk-update(8)
+ps4-update(8)
 
 # NAME
 
-apk update - update repository indexes
+ps4 update - update repository indexes
 
 # SYNOPSIS
 
-*apk update*
+*ps4 update*
 
 # DESCRIPTION
 
-*apk update* forces updating of the indexes from all configured package
+*ps4 update* forces updating of the indexes from all configured package
 repositories. This command is not needed in normal operation as all applets
 requiring indexes will automatically refresh them after caching time expires.
 
-See *apk-repositories*(5) for more information on configuring package
+See *ps4-repositories*(5) for more information on configuring package
 repositories.
 
 # OPTIONS
 
-*apk update* does not support any specific options. See *apk*(8) for global
+*ps4 update* does not support any specific options. See *ps4*(8) for global
 options.

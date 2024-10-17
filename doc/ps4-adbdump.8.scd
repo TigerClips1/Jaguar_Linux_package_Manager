@@ -1,25 +1,25 @@
-apk-adbdump(8)
+ps4-adbdump(8)
 
 # NAME
 
-apk adbdump - dump v3 files in textual representation
+ps4 adbdump - dump v3 files in textual representation
 
 # SYNOPSIS
 
-*apk adbdump* _files_...
+*ps4 adbdump* _files_...
 
 # DESCRIPTION
 
-*apk adbdump* will dump the metadata portion of given _files_ (packages,
+*ps4 adbdump* will dump the metadata portion of given _files_ (packages,
 indexes, installeddb) to its textual representation.
 
 The output is YAML "like" (see BUGS) output which can be used to inspect
-the metadata. *apk adbgen*(8) can convert the textual representation back
+the metadata. *ps4 adbgen*(8) can convert the textual representation back
 to the binary format.
 
 # OPTIONS
 
-*apk adbdump* does not support any specific options. See *apk*(8) for global
+*ps4 adbdump* does not support any specific options. See *ps4*(8) for global
 options.
 
 # BUGS
@@ -28,4 +28,4 @@ YAML compliant quoting is not impemented correctly at this time.
 
 # SEE ALSO
 
-*apk-adbgen*(8), *apk-package*(5), *apk-v3*(5)
+*ps4-adbgen*(8), *ps4-package*(5), *ps4-v3*(5)

@@ -1,28 +1,28 @@
-apk-add(8)
+ps4-add(8)
 
 # NAME
 
-apk add - add or update constraints to _world_ and commit changes
+ps4 add - add or update constraints to _world_ and commit changes
 
 # SYNOPSIS
 
-*apk add* [<_options_>...] _constraints_...
+*ps4 add* [<_options_>...] _constraints_...
 
 # DESCRIPTION
 
-*apk add* adds or updates given constraints to _world_ (see *apk-world*(5))
+*ps4 add* adds or updates given constraints to _world_ (see *ps4-world*(5))
 and commit changes to disk. This usually involves installing new packages,
 but may also cause other changes to the installed packages.
 
-To upgrade individual packages without modifying _world_ use *apk-fix*(8).
+To upgrade individual packages without modifying _world_ use *ps4-fix*(8).
 
-By default *apk* tries to select a set of packages so that all constraints
+By default *ps4* tries to select a set of packages so that all constraints
 are satisfied. This means that some packages can be held back in an older
 version if there is direct or implicit dependencies to the older version.
 
 # OPTIONS
 
-*apk add* supports the commit options described in *apk*(8), as well as the
+*ps4 add* supports the commit options described in *ps4*(8), as well as the
 following options:
 
 *--initdb*
@@ -38,13 +38,13 @@ following options:
 	Deperecated alias for --usermode.
 
 *-u, --upgrade*
-	Upgrade _packages_ and their dependencies. Normally *apk add* will
+	Upgrade _packages_ and their dependencies. Normally *ps4 add* will
 	avoid changing installed package unless it is required by the newly
 	added _packages_ or their dependencies. This changes the default
 	preference to upgrading the package to the latest installable version.
 
 *--usermode*
-	Create usermode database with --initdb. In usermode, apk will operate
+	Create usermode database with --initdb. In usermode, ps4 will operate
 	in such a way that root access is not required. Currently this implies:
 	- checking that we are running as non-root
 	- not changing file owner or group
@@ -62,5 +62,5 @@ following options:
 	to synthesized version based on time.
 
 	One can use this to ensure that selected set of packages are installed,
-	and later the temporary modification be undone with *apk-del*(8) _NAME_
+	and later the temporary modification be undone with *ps4-del*(8) _NAME_
 	without removing packages that were installed earlier.

@@ -1,31 +1,31 @@
-apk-search(8)
+ps4-search(8)
 
 # NAME
 
-apk search - search for packages by name or description
+ps4 search - search for packages by name or description
 
 # SYNOPSIS
 
-*apk search* [<_options_>...] _pattern_...
+*ps4 search* [<_options_>...] _pattern_...
 
 # DESCRIPTION
 
-*apk search* searches all repositories for packages matching at least one
+*ps4 search* searches all repositories for packages matching at least one
 pattern. If no pattern is given, it lists all packages in the configured
-repositories (see *apk-repositories*(5)). A pattern matches if it is a
+repositories (see *ps4-repositories*(5)). A pattern matches if it is a
 case-insensitive substring of the package name.
 
 # OPTIONS
 
-In addition to the global options (see *apk*(8)), *apk search* supports the
+In addition to the global options (see *ps4*(8)), *ps4 search* supports the
 following options:
 
 *-a, --all*
-	Print all matching package versions. By default, *apk* only shows the
+	Print all matching package versions. By default, *ps4* only shows the
 	latest version.
 
 *-d, --description*
-	Also search for _pattern_ in the package description. By default, *apk*
+	Also search for _pattern_ in the package description. By default, *ps4*
 	does not search package descriptions.
 
 *-e, -x, --exact*

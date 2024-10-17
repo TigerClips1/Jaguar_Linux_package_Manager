@@ -1,19 +1,19 @@
-apk-stats(8)
+ps4-stats(8)
 
 # NAME
 
-apk stats - show statistics about repositories and installations
+ps4 stats - show statistics about repositories and installations
 
 # SYNOPSIS
 
-*apk stats*
+*ps4 stats*
 
 # DESCRIPTION
 
-*apk stats* prints statistics about installed packages, package repositories,
+*ps4 stats* prints statistics about installed packages, package repositories,
 and other information.
 
 # OPTIONS
 
-*apk stats* does not support any specific options. See *apk*(8) for global
+*ps4 stats* does not support any specific options. See *ps4*(8) for global
 options.

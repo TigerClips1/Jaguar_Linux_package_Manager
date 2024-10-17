@@ -1,16 +1,16 @@
-apk-dot(8)
+ps4-dot(8)
 
 # NAME
 
-apk dot - generate graphviz graphs
+ps4 dot - generate graphviz graphs
 
 # SYNOPSIS
 
-*apk dot* [<_options_>...] [_pkgmask_...]
+*ps4 dot* [<_options_>...] [_pkgmask_...]
 
 # DESCRIPTION
 
-*apk dot* renders package dependencies as graphviz graphs.
+*ps4 dot* renders package dependencies as graphviz graphs.
 
 The graph is generated for the packages matching the masks given, or for every
 known package if unspecified (this will generate a large and unwieldy graph).

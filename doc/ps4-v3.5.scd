@@ -1,19 +1,19 @@
-apk-v3(5)
+ps4-v3(5)
 
 # NAME
 
-apk v3 - overview of apk v3 format
+ps4 v3 - overview of ps4 v3 format
 
 # DECRIPTION
 
-A v3 .apk file contains a single package's contents, some metadata, and
-some signatures. The .apk file contains a tree of objects, represented
+A v3 .ps4 file contains a single package's contents, some metadata, and
+some signatures. The .ps4 file contains a tree of objects, represented
 in a custom binary format and conforming overall to a pre-defined
-schema. This file format is referred to inside *apk*(5) as "adb".
+schema. This file format is referred to inside *ps4*(5) as "adb".
 
 # WIRE FORMAT
 
-A v3 apk file is composed of sequences of serialized values, each of
+A v3 ps4 file is composed of sequences of serialized values, each of
 which begins with a 32-bit little-endian word - the value's tag. The
 high 4 bits of the tag are a type code, and the low 28 bits are used for
 an immediate value. Defined type codes are:
@@ -57,8 +57,8 @@ declare that it contains fields which themselves conform to the string
 array schema, or the pkginfo schema, or similar.
 
 The schemas themselves are not represented in the adb file in any way;
-they exist in the parts of *apk*(1) that read and write such files. A
-full description of all of apk's schemas would be lengthy, but as an
+they exist in the parts of *ps4*(1) that read and write such files. A
+full description of all of ps4's schemas would be lengthy, but as an
 example, here is the schema for a single file inside a package:
 
 	ADBI_FI_NAME    "name"    string
@@ -115,4 +115,4 @@ compiler-added padding and such.
 
 # SEE ALSO
 
-*abuild*(1), *apk*(1), *apk-package*(5), *apk-v2*(5)
+*abuild*(1), *ps4*(1), *ps4-package*(5), *ps4-v2*(5)

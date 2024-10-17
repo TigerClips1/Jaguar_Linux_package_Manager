@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "apk_defines.h": "c",
+        "charconv": "c",
+        "chrono": "c",
+        "text_encoding": "c",
+        "typeinfo": "c"
+    }
+}

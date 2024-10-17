@@ -4,10 +4,10 @@
 #include <endian.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include "apk_io.h"
-#include "apk_trust.h"
+#include "ps4_io.h"
+#include "ps4_trust.h"
 
-struct apk_extract_ctx;
+struct ps4_extract_ctx;
 struct adb;
 struct adb_obj;
 struct adb_verify_ctx;
@@ -93,8 +93,8 @@ static inline uint64_t adb_block_size(struct adb_block *b) { return ROUND_UP(adb
 static inline uint64_t adb_block_length(struct adb_block *b) { return adb_block_rawsize(b) - adb_block_hdrsize(b); }
 static inline uint32_t adb_block_padding(struct adb_block *b) { return adb_block_size(b) - adb_block_rawsize(b); }
 static inline void *adb_block_payload(struct adb_block *b) { return (char*)b + adb_block_hdrsize(b); }
-static inline apk_blob_t adb_block_blob(struct adb_block *b) {
-	return APK_BLOB_PTR_LEN(adb_block_payload(b), adb_block_length(b));
+static inline ps4_blob_t adb_block_blob(struct adb_block *b) {
+	return ps4_BLOB_PTR_LEN(adb_block_payload(b), adb_block_length(b));
 }
 
 #define ADB_MAX_SIGNATURE_LEN 2048
@@ -141,8 +141,8 @@ struct adb_object_schema {
 	uint16_t num_fields;
 	uint16_t num_compare;
 
-	apk_blob_t (*tostring)(struct adb_obj *, char *, size_t);
-	int (*fromstring)(struct adb_obj *, apk_blob_t);
+	ps4_blob_t (*tostring)(struct adb_obj *, char *, size_t);
+	int (*fromstring)(struct adb_obj *, ps4_blob_t);
 	void (*pre_commit)(struct adb_obj *);
 	const struct adb_object_schema_field *fields;
 };
@@ -151,8 +151,8 @@ struct adb_scalar_schema {
 	uint8_t kind;
 	uint8_t multiline : 1;
 
-	apk_blob_t (*tostring)(struct adb*, adb_val_t, char *, size_t);
-	adb_val_t (*fromstring)(struct adb*, apk_blob_t);
+	ps4_blob_t (*tostring)(struct adb*, adb_val_t, char *, size_t);
+	adb_val_t (*fromstring)(struct adb*, ps4_blob_t);
 	int (*compare)(struct adb*, adb_val_t, struct adb*, adb_val_t);
 };
 
@@ -173,8 +173,8 @@ struct adb_w_bucket {
 };
 
 struct adb {
-	struct apk_istream *is;
-	apk_blob_t adb;
+	struct ps4_istream *is;
+	ps4_blob_t adb;
 	uint32_t schema;
 	uint32_t num_buckets;
 	size_t alloc_len;
@@ -194,9 +194,9 @@ static inline void adb_init(struct adb *db) { memset(db, 0, sizeof *db); }
 int adb_free(struct adb *);
 void adb_reset(struct adb *);
 
-int adb_m_blob(struct adb *, apk_blob_t, struct apk_trust *);
-int adb_m_process(struct adb *db, struct apk_istream *is, uint32_t expected_schema, struct apk_trust *trust, struct apk_extract_ctx *ectx, int (*cb)(struct adb *, struct adb_block *, struct apk_istream *));
-static inline int adb_m_open(struct adb *db, struct apk_istream *is, uint32_t expected_schema, struct apk_trust *trust) {
+int adb_m_blob(struct adb *, ps4_blob_t, struct ps4_trust *);
+int adb_m_process(struct adb *db, struct ps4_istream *is, uint32_t expected_schema, struct ps4_trust *trust, struct ps4_extract_ctx *ectx, int (*cb)(struct adb *, struct adb_block *, struct ps4_istream *));
+static inline int adb_m_open(struct adb *db, struct ps4_istream *is, uint32_t expected_schema, struct ps4_trust *trust) {
 	return adb_m_process(db, is, expected_schema, trust, NULL, 0);
 }
 #define adb_w_init_alloca(db, schema, num_buckets) adb_w_init_dynamic(db, schema, alloca(sizeof(struct list_head[num_buckets])), num_buckets)
@@ -208,7 +208,7 @@ int adb_w_init_static(struct adb *db, void *buf, size_t bufsz);
 adb_val_t adb_r_root(const struct adb *);
 struct adb_obj *adb_r_rootobj(struct adb *a, struct adb_obj *o, const struct adb_object_schema *);
 uint64_t adb_r_int(const struct adb *, adb_val_t);
-apk_blob_t adb_r_blob(const struct adb *, adb_val_t);
+ps4_blob_t adb_r_blob(const struct adb *, adb_val_t);
 struct adb_obj *adb_r_obj(struct adb *, adb_val_t, struct adb_obj *o, const struct adb_object_schema *);
 
 /* Object read */
@@ -218,7 +218,7 @@ static inline uint32_t adb_ra_num(const struct adb_obj *o) { return (o->num ?: 1
 const uint8_t *adb_ro_kind(const struct adb_obj *o, unsigned i);
 adb_val_t adb_ro_val(const struct adb_obj *o, unsigned i);
 uint64_t adb_ro_int(const struct adb_obj *o, unsigned i);
-apk_blob_t adb_ro_blob(const struct adb_obj *o, unsigned i);
+ps4_blob_t adb_ro_blob(const struct adb_obj *o, unsigned i);
 struct adb_obj *adb_ro_obj(const struct adb_obj *o, unsigned i, struct adb_obj *);
 int adb_ro_cmpobj(const struct adb_obj *o1, const struct adb_obj *o2, unsigned mode);
 int adb_ro_cmp(const struct adb_obj *o1, const struct adb_obj *o2, unsigned i, unsigned mode);
@@ -227,12 +227,12 @@ int adb_ra_find(struct adb_obj *arr, int cur, struct adb_obj *tmpl);
 /* Primitive write */
 void adb_w_root(struct adb *, adb_val_t);
 void adb_w_rootobj(struct adb_obj *);
-adb_val_t adb_w_blob_vec(struct adb *, uint32_t, apk_blob_t *);
-adb_val_t adb_w_blob(struct adb *, apk_blob_t);
+adb_val_t adb_w_blob_vec(struct adb *, uint32_t, ps4_blob_t *);
+adb_val_t adb_w_blob(struct adb *, ps4_blob_t);
 adb_val_t adb_w_int(struct adb *, uint64_t);
 adb_val_t adb_w_copy(struct adb *, struct adb *, adb_val_t);
 adb_val_t adb_w_adb(struct adb *, struct adb *);
-adb_val_t adb_w_fromstring(struct adb *, const uint8_t *kind, apk_blob_t);
+adb_val_t adb_w_fromstring(struct adb *, const uint8_t *kind, ps4_blob_t);
 
 /* Object write */
 #define adb_wo_alloca(o, schema, db) adb_wo_init(o, alloca(sizeof(adb_val_t[(schema)->num_fields])), schema, db)
@@ -244,42 +244,42 @@ void adb_wo_reset(struct adb_obj *);
 void adb_wo_resetdb(struct adb_obj *);
 adb_val_t adb_w_obj(struct adb_obj *);
 adb_val_t adb_w_arr(struct adb_obj *);
-int adb_wo_fromstring(struct adb_obj *o, apk_blob_t);
+int adb_wo_fromstring(struct adb_obj *o, ps4_blob_t);
 int adb_wo_copyobj(struct adb_obj *o, struct adb_obj *);
 adb_val_t adb_wo_val(struct adb_obj *o, unsigned i, adb_val_t);
-adb_val_t adb_wo_val_fromstring(struct adb_obj *o, unsigned i, apk_blob_t);
+adb_val_t adb_wo_val_fromstring(struct adb_obj *o, unsigned i, ps4_blob_t);
 adb_val_t adb_wo_int(struct adb_obj *o, unsigned i, uint64_t);
-adb_val_t adb_wo_blob(struct adb_obj *o, unsigned i, apk_blob_t);
-adb_val_t adb_wo_blob_raw(struct adb_obj *o, unsigned i, apk_blob_t);
+adb_val_t adb_wo_blob(struct adb_obj *o, unsigned i, ps4_blob_t);
+adb_val_t adb_wo_blob_raw(struct adb_obj *o, unsigned i, ps4_blob_t);
 adb_val_t adb_wo_obj(struct adb_obj *o, unsigned i, struct adb_obj *);
 adb_val_t adb_wo_arr(struct adb_obj *o, unsigned i, struct adb_obj *);
 adb_val_t adb_wa_append(struct adb_obj *o, adb_val_t);
 adb_val_t adb_wa_append_obj(struct adb_obj *o, struct adb_obj *);
-adb_val_t adb_wa_append_fromstring(struct adb_obj *o, apk_blob_t);
+adb_val_t adb_wa_append_fromstring(struct adb_obj *o, ps4_blob_t);
 void adb_wa_sort(struct adb_obj *);
 void adb_wa_sort_unique(struct adb_obj *);
 
 /* Schema helpers */
-int adb_s_field_by_name_blob(const struct adb_object_schema *schema, apk_blob_t blob);
+int adb_s_field_by_name_blob(const struct adb_object_schema *schema, ps4_blob_t blob);
 int adb_s_field_by_name(const struct adb_object_schema *, const char *);
 
 /* Creation */
-int adb_c_header(struct apk_ostream *os, struct adb *db);
-int adb_c_block(struct apk_ostream *os, uint32_t type, apk_blob_t);
-int adb_c_block_data(struct apk_ostream *os, apk_blob_t hdr, uint64_t size, struct apk_istream *is);
-int adb_c_block_copy(struct apk_ostream *os, struct adb_block *b, struct apk_istream *is, struct adb_verify_ctx *);
-int adb_c_adb(struct apk_ostream *os, struct adb *db, struct apk_trust *t);
-int adb_c_create(struct apk_ostream *os, struct adb *db, struct apk_trust *t);
+int adb_c_header(struct ps4_ostream *os, struct adb *db);
+int adb_c_block(struct ps4_ostream *os, uint32_t type, ps4_blob_t);
+int adb_c_block_data(struct ps4_ostream *os, ps4_blob_t hdr, uint64_t size, struct ps4_istream *is);
+int adb_c_block_copy(struct ps4_ostream *os, struct adb_block *b, struct ps4_istream *is, struct adb_verify_ctx *);
+int adb_c_adb(struct ps4_ostream *os, struct adb *db, struct ps4_trust *t);
+int adb_c_create(struct ps4_ostream *os, struct adb *db, struct ps4_trust *t);
 
 /* Trust */
 struct adb_verify_ctx {
 	uint32_t calc;
-	struct apk_digest sha256;
-	struct apk_digest sha512;
+	struct ps4_digest sha256;
+	struct ps4_digest sha512;
 };
 
-int adb_trust_write_signatures(struct apk_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, struct apk_ostream *os);
-int adb_trust_verify_signature(struct apk_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, apk_blob_t sigb);
+int adb_trust_write_signatures(struct ps4_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, struct ps4_ostream *os);
+int adb_trust_verify_signature(struct ps4_trust *trust, struct adb *db, struct adb_verify_ctx *vfy, ps4_blob_t sigb);
 
 /* SAX style event based handling of ADB */
 
@@ -291,12 +291,12 @@ struct adb_db_schema {
 struct adb_walk;
 struct adb_walk_ops {
 	int (*schema)(struct adb_walk *, uint32_t schema_id);
-	int (*comment)(struct adb_walk *, apk_blob_t comment);
+	int (*comment)(struct adb_walk *, ps4_blob_t comment);
 	int (*start_array)(struct adb_walk *, unsigned int num_items);
 	int (*start_object)(struct adb_walk *);
 	int (*end)(struct adb_walk *);
-	int (*key)(struct adb_walk *, apk_blob_t key_name);
-	int (*scalar)(struct adb_walk *, apk_blob_t scalar, int multiline);
+	int (*key)(struct adb_walk *, ps4_blob_t key_name);
+	int (*scalar)(struct adb_walk *, ps4_blob_t scalar, int multiline);
 };
 
 extern const struct adb_walk_ops adb_walk_gentext_ops, adb_walk_genadb_ops;
@@ -329,8 +329,8 @@ struct adb_walk_genadb {
 	adb_val_t vals[ADB_WALK_GENADB_MAX_VALUES];
 };
 
-int adb_walk_adb(struct adb_walk *d, struct apk_istream *is, struct apk_trust *trust);
-int adb_walk_text(struct adb_walk *d, struct apk_istream *is);
+int adb_walk_adb(struct adb_walk *d, struct ps4_istream *is, struct ps4_trust *trust);
+int adb_walk_text(struct adb_walk *d, struct ps4_istream *is);
 
 // Seamless compression support
 
@@ -347,7 +347,7 @@ struct adb_compression_spec {
 #define ADB_COMP_ZSTD		0x02
 
 int adb_parse_compression(const char *spec_string, struct adb_compression_spec *spec);
-struct apk_istream *adb_decompress(struct apk_istream *is, struct adb_compression_spec *spec);
-struct apk_ostream *adb_compress(struct apk_ostream *os, struct adb_compression_spec *spec);
+struct ps4_istream *adb_decompress(struct ps4_istream *is, struct adb_compression_spec *spec);
+struct ps4_ostream *adb_compress(struct ps4_ostream *os, struct adb_compression_spec *spec);
 
 #endif

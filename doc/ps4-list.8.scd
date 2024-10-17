@@ -1,16 +1,16 @@
-apk-list(8)
+ps4-list(8)
 
 # NAME
 
-apk list - list packages matching a pattern or other criteria
+ps4 list - list packages matching a pattern or other criteria
 
 # SYNOPSIS
 
-*apk list* [<_options_>...] _pattern_...
+*ps4 list* [<_options_>...] _pattern_...
 
 # DESCRIPTION
 
-*apk list* searches package indicies for packages matching the given patterns
+*ps4 list* searches package indicies for packages matching the given patterns
 and prints any matching packages.
 
 The patterns are matched with *fnmatch*(3), which behaves similarly to shell

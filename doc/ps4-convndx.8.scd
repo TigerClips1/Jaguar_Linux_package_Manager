@@ -1,19 +1,19 @@
-apk-convndx(8)
+ps4-convndx(8)
 
 # NAME
 
-apk convndx - convert v2 indexes to v3 format
+ps4 convndx - convert v2 indexes to v3 format
 
 # SYNOPSIS
 
-*apk convndx* _indexes_...
+*ps4 convndx* _indexes_...
 
 # DESCRIPTION
 
-*apk convndx* reads the specifed _indexes_ and generates and merges them.
-The resulting data is written out to stdout in apkv3 index format.
+*ps4 convndx* reads the specifed _indexes_ and generates and merges them.
+The resulting data is written out to stdout in ps4v3 index format.
 
 # OPTIONS
 
-*apk convndx* does not support any specific options. See *apk*(8) for global
+*ps4 convndx* does not support any specific options. See *ps4*(8) for global
 options.

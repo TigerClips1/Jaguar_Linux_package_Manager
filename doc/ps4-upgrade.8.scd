@@ -1,28 +1,28 @@
-apk-upgrade(8)
+ps4-upgrade(8)
 
 # NAME
 
-apk upgrade - upgrade installed packages
+ps4 upgrade - upgrade installed packages
 
 # SYNOPSIS
 
-*apk upgrade* [<_options_>...] [<_packages_>...]
+*ps4 upgrade* [<_options_>...] [<_packages_>...]
 
 # DESCRIPTION
 
-*apk upgrade* upgrades installed packages to the latest version available from
-configured package repositories (see *apk-repositories*(5)). When no packages
+*ps4 upgrade* upgrades installed packages to the latest version available from
+configured package repositories (see *ps4-repositories*(5)). When no packages
 are specified, all packages are upgraded if possible. If list of packages is
 provided, only those packages are upgraded along with needed dependencies.
 
 # OPTIONS
 
-*apk upgrade* supports the commit options described in *apk*(8), as well as the
+*ps4 upgrade* supports the commit options described in *ps4*(8), as well as the
 following options:
 
 *-a, --available*
 	Reset all packages to versions available from current repositories.
-	This resets all versioned dependencies in _world_ (see *apk-world*(5)).
+	This resets all versioned dependencies in _world_ (see *ps4-world*(5)).
 	Additionally, packages are selected from active repositories if possible
 	even if it means replacing or downgrading the package.
 
@@ -40,11 +40,11 @@ following options:
 	dependencies cannot be satisfied.
 
 *--no-self-upgrade*
-	Do not do an early upgrade of the 'apk-tools' package.
+	Do not do an early upgrade of the 'ps4-tools' package.
 
 *--prune*
 	Prune the _world_ by removing packages which are no longer available
 	from any configured repository.
 
 *--self-upgrade-only*
-	Only perform a self-upgrade of the 'apk-tools' package.
+	Only perform a self-upgrade of the 'ps4-tools' package.
