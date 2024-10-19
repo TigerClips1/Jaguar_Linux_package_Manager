@@ -94,7 +94,7 @@ static inline uint64_t adb_block_length(struct adb_block *b) { return adb_block_
 static inline uint32_t adb_block_padding(struct adb_block *b) { return adb_block_size(b) - adb_block_rawsize(b); }
 static inline void *adb_block_payload(struct adb_block *b) { return (char*)b + adb_block_hdrsize(b); }
 static inline ps4_blob_t adb_block_blob(struct adb_block *b) {
-	return ps4_BLOB_PTR_LEN(adb_block_payload(b), adb_block_length(b));
+	return PS4_BLOB_PTR_LEN(adb_block_payload(b), adb_block_length(b));
 }
 
 #define ADB_MAX_SIGNATURE_LEN 2048

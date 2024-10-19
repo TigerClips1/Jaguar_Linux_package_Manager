@@ -36,7 +36,7 @@ typedef int (*ps4_blob_cb)(void *ctx, ps4_blob_t blob);
 static inline ps4_blob_t PS4_BLOB_STR(const char *str)
 {
 	if (str == NULL)
-		return ps4_BLOB_NULL;
+		return PS4_BLOB_NULL;
 	return ((ps4_blob_t){strlen(str), (void *)(str)});
 }
 

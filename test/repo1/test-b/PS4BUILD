@@ -1,15 +1,15 @@
 # Contributor: 
 # Maintainer: 
-pkgname=test-d
+pkgname=test-b
 pkgver=1.0
 pkgrel=0
-pkgdesc="Package D for apk-tools testsuite - post-install"
-url="http://alpinelinux.org"
+pkgdesc="Package A for ps4-tools testsuite"
+url="https://ps4jaguarlinux.site"
 arch="noarch"
 license="GPL"
-depends=
+depends=test-a
 makedepends=
-install="$pkgname.post-install"
+install=
 subpackages=
 source=""
 builddir="$srcdir/$pkgname-$pkgver"

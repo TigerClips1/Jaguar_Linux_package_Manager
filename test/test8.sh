@@ -2,6 +2,6 @@
 
 # desc: test if upgrade works when package is missing in repo
 
-$APK add --root $ROOT --initdb --repository $PWD/repo1 test-a
+$PS4 add --root $ROOT --initdb --repository $PWD/repo1 test-a
 
-$APK upgrade --root $ROOT 
+$PS4 upgrade --root $ROOT 

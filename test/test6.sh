@@ -2,7 +2,7 @@
 
 # desc: test triggers in kernel package
 
-$APK add --root $ROOT --initdb -U --repository $PWD/repo1 \
+$PS4 add --root $ROOT --initdb -U --repository $PWD/repo1 \
 	--repository $SYSREPO alpine-keys linux-lts
 
 test -e "$ROOT"/boot/vmlinuz-lts

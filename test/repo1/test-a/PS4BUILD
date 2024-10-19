@@ -3,8 +3,8 @@
 pkgname=test-a
 pkgver=1.0
 pkgrel=0
-pkgdesc="Package A for apk-tools testsuite"
-url="http://alpinelinux.org"
+pkgdesc="Package A for ps4-tools testsuite"
+url="https://ps4jaguarlinux.site"
 arch="noarch"
 license="GPL"
 depends=

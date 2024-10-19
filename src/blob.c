@@ -1,4 +1,4 @@
-/* blob.c - Alpine Package Keeper (APK)
+/* blob.c -  PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -13,11 +13,11 @@
 #include <stdint.h>
 #include <stdarg.h>
 
-#include "apk_blob.h"
-#include "apk_hash.h"
-#include "apk_crypto.h"
+#include "ps4_blob.h"
+#include "ps4_hash.h"
+#include "ps4_crypto.h"
 
-char *apk_blob_cstr(apk_blob_t blob)
+char *ps4_blob_cstr(ps4_blob_t blob)
 {
 	char *cstr;
 
@@ -34,15 +34,15 @@ char *apk_blob_cstr(apk_blob_t blob)
 	return cstr;
 }
 
-apk_blob_t apk_blob_dup(apk_blob_t blob)
+ps4_blob_t ps4_blob_dup(ps4_blob_t blob)
 {
 	char *ptr = malloc(blob.len);
-	if (!ptr) return APK_BLOB_NULL;
+	if (!ptr) return PS4_BLOB_NULL;
 	memcpy(ptr, blob.ptr, blob.len);
-	return APK_BLOB_PTR_LEN(ptr, blob.len);
+	return PS4_BLOB_PTR_LEN(ptr, blob.len);
 }
 
-int apk_blob_rsplit(apk_blob_t blob, char split, apk_blob_t *l, apk_blob_t *r)
+int ps4_blob_rsplit(ps4_blob_t blob, char split, ps4_blob_t *l, ps4_blob_t *r)
 {
 	char *sep;
 
@@ -51,14 +51,14 @@ int apk_blob_rsplit(apk_blob_t blob, char split, apk_blob_t *l, apk_blob_t *r)
 		return 0;
 
 	if (l != NULL)
-		*l = APK_BLOB_PTR_PTR(blob.ptr, sep - 1);
+		*l = PS4_BLOB_PTR_PTR(blob.ptr, sep - 1);
 	if (r != NULL)
-		*r = APK_BLOB_PTR_PTR(sep + 1, blob.ptr + blob.len - 1);
+		*r = PS4_BLOB_PTR_PTR(sep + 1, blob.ptr + blob.len - 1);
 
 	return 1;
 }
 
-int apk_blob_split(apk_blob_t blob, apk_blob_t split, apk_blob_t *l, apk_blob_t *r)
+int ps4_blob_split(ps4_blob_t blob, ps4_blob_t split, ps4_blob_t *l, ps4_blob_t *r)
 {
 	char *pos = blob.ptr, *end = blob.ptr + blob.len - split.len + 1;
 
@@ -73,18 +73,18 @@ int apk_blob_split(apk_blob_t blob, apk_blob_t split, apk_blob_t *l, apk_blob_t 
 			continue;
 		}
 
-		*l = APK_BLOB_PTR_PTR(blob.ptr, pos-1);
-		*r = APK_BLOB_PTR_PTR(pos+split.len, blob.ptr+blob.len-1);
+		*l = PS4_BLOB_PTR_PTR(blob.ptr, pos-1);
+		*r = PS4_BLOB_PTR_PTR(pos+split.len, blob.ptr+blob.len-1);
 		return 1;
 	}
 }
 
-apk_blob_t apk_blob_pushed(apk_blob_t buffer, apk_blob_t left)
+ps4_blob_t ps4_blob_pushed(ps4_blob_t buffer, ps4_blob_t left)
 {
 	if (buffer.ptr + buffer.len != left.ptr + left.len)
-		return APK_BLOB_NULL;
+		return PS4_BLOB_NULL;
 
-	return APK_BLOB_PTR_LEN(buffer.ptr, left.ptr - buffer.ptr);
+	return PS4_BLOB_PTR_LEN(buffer.ptr, left.ptr - buffer.ptr);
 }
 
 static inline __attribute__((always_inline)) uint32_t rotl32(uint32_t x, int8_t r)
@@ -132,17 +132,17 @@ static uint32_t murmur3_32(const void *pkey, uint32_t len, uint32_t seed)
 	return h;
 }
 
-unsigned long apk_blob_hash_seed(apk_blob_t blob, unsigned long seed)
+unsigned long ps4_blob_hash_seed(ps4_blob_t blob, unsigned long seed)
 {
 	return murmur3_32(blob.ptr, blob.len, seed);
 }
 
-unsigned long apk_blob_hash(apk_blob_t blob)
+unsigned long ps4_blob_hash(ps4_blob_t blob)
 {
-	return apk_blob_hash_seed(blob, 5381);
+	return ps4_blob_hash_seed(blob, 5381);
 }
 
-int apk_blob_compare(apk_blob_t a, apk_blob_t b)
+int ps4_blob_compare(ps4_blob_t a, ps4_blob_t b)
 {
 	if (a.len == b.len)
 		return memcmp(a.ptr, b.ptr, a.len);
@@ -151,33 +151,33 @@ int apk_blob_compare(apk_blob_t a, apk_blob_t b)
 	return 1;
 }
 
-int apk_blob_sort(apk_blob_t a, apk_blob_t b)
+int ps4_blob_sort(ps4_blob_t a, ps4_blob_t b)
 {
 	int s = memcmp(a.ptr, b.ptr, min(a.len, b.len));
 	if (s != 0) return s;
 	return a.len - b.len;
 }
 
-int apk_blob_starts_with(apk_blob_t a, apk_blob_t b)
+int ps4_blob_starts_with(ps4_blob_t a, ps4_blob_t b)
 {
 	if (a.len < b.len) return 0;
 	return memcmp(a.ptr, b.ptr, b.len) == 0;
 }
 
-int apk_blob_ends_with(apk_blob_t a, apk_blob_t b)
+int ps4_blob_ends_with(ps4_blob_t a, ps4_blob_t b)
 {
 	if (a.len < b.len) return 0;
 	return memcmp(a.ptr+a.len-b.len, b.ptr, b.len) == 0;
 }
 
-int apk_blob_for_each_segment(apk_blob_t blob, const char *split,
-			      int (*cb)(void *ctx, apk_blob_t blob), void *ctx)
+int ps4_blob_for_each_segment(ps4_blob_t blob, const char *split,
+			      int (*cb)(void *ctx, ps4_blob_t blob), void *ctx)
 {
-	apk_blob_t l, r, s = APK_BLOB_STR(split);
+	ps4_blob_t l, r, s = PS4_BLOB_STR(split);
 	int rc;
 
 	r = blob;
-	while (apk_blob_split(r, s, &l, &r)) {
+	while (ps4_blob_split(r, s, &l, &r)) {
 		rc = cb(ctx, l);
 		if (rc != 0)
 			return rc;
@@ -227,13 +227,13 @@ static inline int dx(unsigned char c)
 	return digitdecode[c];
 }
 
-void apk_blob_push_blob(apk_blob_t *to, apk_blob_t literal)
+void ps4_blob_push_blob(ps4_blob_t *to, ps4_blob_t literal)
 {
-	if (unlikely(APK_BLOB_IS_NULL(*to)))
+	if (unlikely(PS4_BLOB_IS_NULL(*to)))
 		return;
 
 	if (unlikely(to->len < literal.len)) {
-		*to = APK_BLOB_NULL;
+		*to = PS4_BLOB_NULL;
 		return;
 	}
 
@@ -244,13 +244,13 @@ void apk_blob_push_blob(apk_blob_t *to, apk_blob_t literal)
 
 static const char *xd = "0123456789abcdefghijklmnopqrstuvwxyz";
 
-void apk_blob_push_uint(apk_blob_t *to, unsigned int value, int radix)
+void ps4_blob_push_uint(ps4_blob_t *to, unsigned int value, int radix)
 {
 	char buf[64];
 	char *ptr = &buf[sizeof(buf)-1];
 
 	if (value == 0) {
-		apk_blob_push_blob(to, APK_BLOB_STR("0"));
+		ps4_blob_push_blob(to, PS4_BLOB_STR("0"));
 		return;
 	}
 
@@ -259,37 +259,37 @@ void apk_blob_push_uint(apk_blob_t *to, unsigned int value, int radix)
 		value /= radix;
 	}
 
-	apk_blob_push_blob(to, APK_BLOB_PTR_PTR(ptr+1, &buf[sizeof(buf)-1]));
+	ps4_blob_push_blob(to, PS4_BLOB_PTR_PTR(ptr+1, &buf[sizeof(buf)-1]));
 }
 
-void apk_blob_push_hash_hex(apk_blob_t *to, apk_blob_t hash)
+void ps4_blob_push_hash_hex(ps4_blob_t *to, ps4_blob_t hash)
 {
 	switch (hash.len) {
-	case APK_DIGEST_LENGTH_MD5:
-		apk_blob_push_hexdump(to, hash);
+	case PS4_DIGEST_LENGTH_MD5:
+		ps4_blob_push_hexdump(to, hash);
 		break;
-	case APK_DIGEST_LENGTH_SHA1:
-		apk_blob_push_blob(to, APK_BLOB_STR("X1"));
-		apk_blob_push_hexdump(to, hash);
+	case PS4_DIGEST_LENGTH_SHA1:
+		ps4_blob_push_blob(to, PS4_BLOB_STR("X1"));
+		ps4_blob_push_hexdump(to, hash);
 		break;
 	default:
-		*to = APK_BLOB_NULL;
+		*to = PS4_BLOB_NULL;
 		break;
 	}
 }
 
-void apk_blob_push_hash(apk_blob_t *to, apk_blob_t hash)
+void ps4_blob_push_hash(ps4_blob_t *to, ps4_blob_t hash)
 {
 	switch (hash.len) {
-	case APK_DIGEST_LENGTH_MD5:
-		apk_blob_push_hexdump(to, hash);
+	case PS4_DIGEST_LENGTH_MD5:
+		ps4_blob_push_hexdump(to, hash);
 		break;
-	case APK_DIGEST_LENGTH_SHA1:
-		apk_blob_push_blob(to, APK_BLOB_STR("Q1"));
-		apk_blob_push_base64(to, hash);
+	case PS4_DIGEST_LENGTH_SHA1:
+		ps4_blob_push_blob(to, PS4_BLOB_STR("Q1"));
+		ps4_blob_push_base64(to, hash);
 		break;
 	default:
-		*to = APK_BLOB_NULL;
+		*to = PS4_BLOB_NULL;
 		break;
 	}
 }
@@ -312,17 +312,17 @@ static inline void push_b64_tail(unsigned char *to, const unsigned char *from, i
 	to[3] = '=';
 }
 
-void apk_blob_push_base64(apk_blob_t *to, apk_blob_t binary)
+void ps4_blob_push_base64(ps4_blob_t *to, ps4_blob_t binary)
 {
 	unsigned char *src = (unsigned char *) binary.ptr;
 	unsigned char *dst = (unsigned char *) to->ptr;
 	int i, needed;
 
-	if (unlikely(APK_BLOB_IS_NULL(*to))) return;
+	if (unlikely(PS4_BLOB_IS_NULL(*to))) return;
 
 	needed = ((binary.len + 2) / 3) * 4;
 	if (unlikely(to->len < needed)) {
-		*to = APK_BLOB_NULL;
+		*to = PS4_BLOB_NULL;
 		return;
 	}
 
@@ -338,14 +338,14 @@ void apk_blob_push_base64(apk_blob_t *to, apk_blob_t binary)
 	to->len -= needed;
 }
 
-void apk_blob_push_hexdump(apk_blob_t *to, apk_blob_t binary)
+void ps4_blob_push_hexdump(ps4_blob_t *to, ps4_blob_t binary)
 {
 	char *d;
 	int i;
 
-	if (unlikely(APK_BLOB_IS_NULL(*to))) return;
+	if (unlikely(PS4_BLOB_IS_NULL(*to))) return;
 	if (unlikely(to->len < binary.len * 2)) {
-		*to = APK_BLOB_NULL;
+		*to = PS4_BLOB_NULL;
 		return;
 	}
 
@@ -357,12 +357,12 @@ void apk_blob_push_hexdump(apk_blob_t *to, apk_blob_t binary)
 	to->len -= binary.len * 2;
 }
 
-void apk_blob_push_fmt(apk_blob_t *to, const char *fmt, ...)
+void ps4_blob_push_fmt(ps4_blob_t *to, const char *fmt, ...)
 {
 	va_list va;
 	int n;
 
-	if (unlikely(APK_BLOB_IS_NULL(*to)))
+	if (unlikely(PS4_BLOB_IS_NULL(*to)))
 		return;
 
 	va_start(va, fmt);
@@ -373,23 +373,23 @@ void apk_blob_push_fmt(apk_blob_t *to, const char *fmt, ...)
 		to->ptr += n;
 		to->len -= n;
 	} else {
-		*to = APK_BLOB_NULL;
+		*to = PS4_BLOB_NULL;
 	}
 }
 
-void apk_blob_pull_char(apk_blob_t *b, int expected)
+void ps4_blob_pull_char(ps4_blob_t *b, int expected)
 {
-	if (unlikely(APK_BLOB_IS_NULL(*b)))
+	if (unlikely(ps4_BLOB_IS_NULL(*b)))
 		return;
 	if (unlikely(b->len < 1 || b->ptr[0] != expected)) {
-		*b = APK_BLOB_NULL;
+		*b = PS4_BLOB_NULL;
 		return;
 	}
 	b->ptr ++;
 	b->len --;
 }
 
-uint64_t apk_blob_pull_uint(apk_blob_t *b, int radix)
+uint64_t ps4_blob_pull_uint(ps4_blob_t *b, int radix)
 {
 	unsigned int val;
 	int ch;
@@ -409,12 +409,12 @@ uint64_t apk_blob_pull_uint(apk_blob_t *b, int radix)
 	return val;
 }
 
-void apk_blob_pull_hexdump(apk_blob_t *b, apk_blob_t to)
+void ps4_blob_pull_hexdump(ps4_blob_t *b, ps4_blob_t to)
 {
 	char *s, *d;
 	int i, r, r1, r2;
 
-	if (unlikely(APK_BLOB_IS_NULL(*b)))
+	if (unlikely(ps4_BLOB_IS_NULL(*b)))
 		return;
 
 	if (unlikely(to.len > b->len * 2))
@@ -432,10 +432,10 @@ void apk_blob_pull_hexdump(apk_blob_t *b, apk_blob_t to)
 	b->len -= to.len * 2;
 	return;
 err:
-	*b = APK_BLOB_NULL;
+	*b = PS4_BLOB_NULL;
 }
 
-int apk_blob_pull_blob_match(apk_blob_t *b, apk_blob_t match)
+int ps4_blob_pull_blob_match(ps4_blob_t *b, ps4_blob_t match)
 {
 	if (b->len < match.len) return 0;
 	if (memcmp(b->ptr, match.ptr, match.len) != 0) return 0;
@@ -500,7 +500,7 @@ int pull_b64_tail(unsigned char *restrict to, const unsigned char *restrict from
 	return 0;
 }
 
-void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to)
+void ps4_blob_pull_base64(ps4_blob_t *b, ps4_blob_t to)
 {
 	unsigned char tmp[4];
 	unsigned char *restrict src = (unsigned char *) b->ptr;
@@ -508,7 +508,7 @@ void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to)
 	unsigned char *dend;
 	int r, needed;
 
-	if (unlikely(APK_BLOB_IS_NULL(*b))) return;
+	if (unlikely(PS4_BLOB_IS_NULL(*b))) return;
 
 	needed = ((to.len + 2) / 3) * 4;
 	if (unlikely(b->len < needed)) goto err;
@@ -535,30 +535,30 @@ void apk_blob_pull_base64(apk_blob_t *b, apk_blob_t to)
 	b->len -= needed;
 	return;
 err:
-	*b = APK_BLOB_NULL;
+	*b = PS4_BLOB_NULL;
 }
 
-void apk_blob_pull_digest(apk_blob_t *b, struct apk_digest *d)
+void ps4_blob_pull_digest(ps4_blob_t *b, struct ps4_digest *d)
 {
 	int encoding;
 
-	if (unlikely(APK_BLOB_IS_NULL(*b))) goto fail;
+	if (unlikely(PS4_BLOB_IS_NULL(*b))) goto fail;
 	if (unlikely(b->len < 2)) goto fail;
 	if (unlikely(dx(b->ptr[0]) != 0xff)) {
 		/* Assume MD5 for backwards compatibility */
-		apk_digest_set(d, APK_DIGEST_MD5);
-		apk_blob_pull_hexdump(b, APK_DIGEST_BLOB(*d));
-		if (unlikely(APK_BLOB_IS_NULL(*b))) goto fail;
+		ps4_digest_set(d, PS4_DIGEST_MD5);
+		ps4_blob_pull_hexdump(b, PS4_DIGEST_BLOB(*d));
+		if (unlikely(PS4_BLOB_IS_NULL(*b))) goto fail;
 		return;
 	}
 
 	encoding = b->ptr[0];
 	switch (b->ptr[1]) {
 	case '1':
-		apk_digest_set(d, APK_DIGEST_SHA1);
+		ps4_digest_set(d, PS4_DIGEST_SHA1);
 		break;
 	case '2':
-		apk_digest_set(d, APK_DIGEST_SHA256);
+		ps4_digest_set(d, PS4_DIGEST_SHA256);
 		break;
 	default:
 		goto fail;
@@ -568,27 +568,27 @@ void apk_blob_pull_digest(apk_blob_t *b, struct apk_digest *d)
 
 	switch (encoding) {
 	case 'X':
-		apk_blob_pull_hexdump(b, APK_DIGEST_BLOB(*d));
-		if (d->alg == APK_DIGEST_SHA1 &&
+		ps4_blob_pull_hexdump(b, PS4_DIGEST_BLOB(*d));
+		if (d->alg == PS4_DIGEST_SHA1 &&
 		    b->len == 24 /* hexdump length of difference */ &&
 		    dx(b->ptr[0]) != 0xff) {
-			apk_digest_set(d, APK_DIGEST_SHA256);
-			apk_blob_pull_hexdump(b, APK_BLOB_PTR_LEN((char*)&d->data[APK_DIGEST_LENGTH_SHA1], APK_DIGEST_LENGTH_SHA256-APK_DIGEST_LENGTH_SHA1));
+			ps4_digest_set(d, PS4_DIGEST_SHA256);
+			ps4_blob_pull_hexdump(b, PS4_BLOB_PTR_LEN((char*)&d->data[PS4_DIGEST_LENGTH_SHA1], PS4_DIGEST_LENGTH_SHA256-PS4_DIGEST_LENGTH_SHA1));
 		}
 		break;
 	case 'Q':
-		apk_blob_pull_base64(b, APK_DIGEST_BLOB(*d));
-		if (d->alg == APK_DIGEST_SHA1 &&
+		ps4_blob_pull_base64(b, PS4_DIGEST_BLOB(*d));
+		if (d->alg == PS4_DIGEST_SHA1 &&
 		    b->len == 16 /* base64 length of difference */ &&
 		    b64decode[(unsigned char)b->ptr[0]] != 0xff) {
-			apk_digest_set(d, APK_DIGEST_SHA256);
-			apk_blob_pull_base64(b, APK_BLOB_PTR_LEN((char*)&d->data[APK_DIGEST_LENGTH_SHA1], APK_DIGEST_LENGTH_SHA256-APK_DIGEST_LENGTH_SHA1));
+			ps4_digest_set(d, PS4_DIGEST_SHA256);
+			ps4_blob_pull_base64(b, PS4_BLOB_PTR_LEN((char*)&d->data[PS4_DIGEST_LENGTH_SHA1], PS4_DIGEST_LENGTH_SHA256-PS4_DIGEST_LENGTH_SHA1));
 		}
 		break;
 	default:
 	fail:
-		*b = APK_BLOB_NULL;
-		apk_digest_reset(d);
+		*b = PS4_BLOB_NULL;
+		ps4_digest_reset(d);
 		break;
 	}
 }

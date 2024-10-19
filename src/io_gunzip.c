@@ -1,4 +1,4 @@
-/* io_gunzip.c - Alpine Package Keeper (APK)
+/* io_gunzip.c - PS4linux package manager (PS4)
  *
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
  * All rights reserved.
@@ -12,50 +12,50 @@
 #include <unistd.h>
 #include <zlib.h>
 
-#include "apk_defines.h"
-#include "apk_io.h"
+#include "ps4_defines.h"
+#include "ps4_io.h"
 
-struct apk_gzip_istream {
-	struct apk_istream is;
-	struct apk_istream *zis;
+struct ps4_gzip_istream {
+	struct ps4_istream is;
+	struct ps4_istream *zis;
 	z_stream zs;
 
-	apk_multipart_cb cb;
+	ps4_multipart_cb cb;
 	void *cbctx;
 	void *cbprev;
-	apk_blob_t cbarg;
+	ps4_blob_t cbarg;
 };
 
-static void gzi_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
+static void gzi_get_meta(struct ps4_istream *is, struct ps4_file_meta *meta)
 {
-	struct apk_gzip_istream *gis = container_of(is, struct apk_gzip_istream, is);
-	apk_istream_get_meta(gis->zis, meta);
+	struct ps4_gzip_istream *gis = container_of(is, struct ps4_gzip_istream, is);
+	ps4_istream_get_meta(gis->zis, meta);
 }
 
-static int gzi_boundary_change(struct apk_gzip_istream *gis)
+static int gzi_boundary_change(struct ps4_gzip_istream *gis)
 {
 	int r;
 
-	if (gis->cb && !APK_BLOB_IS_NULL(gis->cbarg)) {
-		r = gis->cb(gis->cbctx, APK_MPART_DATA, gis->cbarg);
-		if (r) return apk_istream_error(&gis->is, r);
+	if (gis->cb && !ps4_BLOB_IS_NULL(gis->cbarg)) {
+		r = gis->cb(gis->cbctx, PS4_MPART_DATA, gis->cbarg);
+		if (r) return ps4_istream_error(&gis->is, r);
 	}
-	gis->cbarg = APK_BLOB_NULL;
+	gis->cbarg = PS4_BLOB_NULL;
 	if (!gis->is.err && gis->zis->err && gis->zs.avail_in == 0) gis->is.err = gis->zis->err;
 	if (!gis->cb) return 0;
-	r = gis->cb(gis->cbctx, gis->is.err ? APK_MPART_END : APK_MPART_BOUNDARY, APK_BLOB_NULL);
+	r = gis->cb(gis->cbctx, gis->is.err ? PS4_MPART_END : PS4_MPART_BOUNDARY, PS4_BLOB_NULL);
 	if (r > 0) r = -ECANCELED;
-	return apk_istream_error(&gis->is, r);
+	return ps4_istream_error(&gis->is, r);
 }
 
-static int gzi_read_more(struct apk_gzip_istream *gis)
+static int gzi_read_more(struct ps4_gzip_istream *gis)
 {
-	apk_blob_t blob;
+	ps4_blob_t blob;
 	int r;
 
-	r = apk_istream_get_all(gis->zis, &blob);
+	r = ps4_istream_get_all(gis->zis, &blob);
 	if (r < 0) {
-		if (r != -APKE_EOF) return apk_istream_error(&gis->is, r);
+		if (r != -PS4E_EOF) return ps4_istream_error(&gis->is, r);
 		return 0;
 	}
 	gis->zs.avail_in = blob.len;
@@ -64,24 +64,24 @@ static int gzi_read_more(struct apk_gzip_istream *gis)
 	return 0;
 }
 
-static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
+static ssize_t gzi_read(struct ps4_istream *is, void *ptr, size_t size)
 {
-	struct apk_gzip_istream *gis = container_of(is, struct apk_gzip_istream, is);
+	struct ps4_gzip_istream *gis = container_of(is, struct ps4_gzip_istream, is);
 	int r;
 
 	gis->zs.avail_out = size;
 	gis->zs.next_out  = ptr;
 
 	while (gis->zs.avail_out != 0 && gis->is.err >= 0) {
-		if (!APK_BLOB_IS_NULL(gis->cbarg)) {
+		if (!PS4_BLOB_IS_NULL(gis->cbarg)) {
 			r = gzi_boundary_change(gis);
 			if (r) return r;
 		}
 		if (gis->zs.avail_in == 0 && gis->is.err == 0) {
 			if (gis->cb != NULL && gis->cbprev != NULL && gis->cbprev != gis->zs.next_in) {
-				r = gis->cb(gis->cbctx, APK_MPART_DATA,
-					APK_BLOB_PTR_LEN(gis->cbprev, (void *)gis->zs.next_in - gis->cbprev));
-				if (r < 0) return apk_istream_error(&gis->is, r);
+				r = gis->cb(gis->cbctx, PS4_MPART_DATA,
+					PS4_BLOB_PTR_LEN(gis->cbprev, (void *)gis->zs.next_in - gis->cbprev));
+				if (r < 0) return ps4_istream_error(&gis->is, r);
 				gis->cbprev = gis->zs.next_in;
 			}
 			r = gzi_read_more(gis);
@@ -92,7 +92,7 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 		switch (r) {
 		case Z_STREAM_END:
 			if (gis->cb != NULL) {
-				gis->cbarg = APK_BLOB_PTR_LEN(gis->cbprev, (void *) gis->zs.next_in - gis->cbprev);
+				gis->cbarg = PS4_BLOB_PTR_LEN(gis->cbprev, (void *) gis->zs.next_in - gis->cbprev);
 				gis->cbprev = gis->zs.next_in;
 			}
 			/* Digest the inflated bytes */
@@ -121,7 +121,7 @@ static ssize_t gzi_read(struct apk_istream *is, void *ptr, size_t size)
 			 * and we just tried reading a new header. */
 			goto ret;
 		default:
-			return apk_istream_error(&gis->is, -APKE_FORMAT_INVALID);
+			return ps4_istream_error(&gis->is, -PS4E_FORMAT_INVALID);
 		}
 	}
 
@@ -129,18 +129,18 @@ ret:
 	return size - gis->zs.avail_out;
 }
 
-static int gzi_close(struct apk_istream *is)
+static int gzi_close(struct ps4_istream *is)
 {
 	int r;
-	struct apk_gzip_istream *gis = container_of(is, struct apk_gzip_istream, is);
+	struct ps4_gzip_istream *gis = container_of(is, struct ps4_gzip_istream, is);
 
 	inflateEnd(&gis->zs);
-	r = apk_istream_close_error(gis->zis, gis->is.err);
+	r = ps4_istream_close_error(gis->zis, gis->is.err);
 	free(gis);
 	return r;
 }
 
-static const struct apk_istream_ops gunzip_istream_ops = {
+static const struct ps4_istream_ops gunzip_istream_ops = {
 	.get_meta = gzi_get_meta,
 	.read = gzi_read,
 	.close = gzi_close,
@@ -152,19 +152,19 @@ static int window_bits(int window_bits, int raw)
 	return window_bits | 16;	// gzip mode
 }
 
-struct apk_istream *apk_istream_zlib(struct apk_istream *is, int raw, apk_multipart_cb cb, void *ctx)
+struct ps4_istream *ps4_istream_zlib(struct ps4_istream *is, int raw, ps4_multipart_cb cb, void *ctx)
 {
-	struct apk_gzip_istream *gis;
+	struct ps4_gzip_istream *gis;
 
 	if (IS_ERR(is)) return ERR_CAST(is);
 
-	gis = malloc(sizeof(*gis) + apk_io_bufsize);
+	gis = malloc(sizeof(*gis) + ps4_io_bufsize);
 	if (!gis) goto err;
 
-	*gis = (struct apk_gzip_istream) {
+	*gis = (struct ps4_gzip_istream) {
 		.is.ops = &gunzip_istream_ops,
 		.is.buf = (uint8_t*)(gis + 1),
-		.is.buf_size = apk_io_bufsize,
+		.is.buf_size = ps4_io_bufsize,
 		.zis = is,
 		.cb = cb,
 		.cbctx = ctx,
@@ -177,18 +177,18 @@ struct apk_istream *apk_istream_zlib(struct apk_istream *is, int raw, apk_multip
 
 	return &gis->is;
 err:
-	return ERR_PTR(apk_istream_close_error(is, -ENOMEM));
+	return ERR_PTR(ps4_istream_close_error(is, -ENOMEM));
 }
 
-struct apk_gzip_ostream {
-	struct apk_ostream os;
-	struct apk_ostream *output;
+struct ps4_gzip_ostream {
+	struct ps4_ostream os;
+	struct ps4_ostream *output;
 	z_stream zs;
 };
 
-static int gzo_write(struct apk_ostream *os, const void *ptr, size_t size)
+static int gzo_write(struct ps4_ostream *os, const void *ptr, size_t size)
 {
-	struct apk_gzip_ostream *gos = container_of(os, struct apk_gzip_ostream, os);
+	struct ps4_gzip_ostream *gos = container_of(os, struct ps4_gzip_ostream, os);
 	unsigned char buffer[1024];
 	ssize_t have, r;
 
@@ -199,10 +199,10 @@ static int gzo_write(struct apk_ostream *os, const void *ptr, size_t size)
 		gos->zs.next_out = buffer;
 		r = deflate(&gos->zs, Z_NO_FLUSH);
 		if (r == Z_STREAM_ERROR)
-			return apk_ostream_cancel(gos->output, -EIO);
+			return ps4_ostream_cancel(gos->output, -EIO);
 		have = sizeof(buffer) - gos->zs.avail_out;
 		if (have != 0) {
-			r = apk_ostream_write(gos->output, buffer, have);
+			r = ps4_ostream_write(gos->output, buffer, have);
 			if (r < 0) return r;
 		}
 	}
@@ -210,9 +210,9 @@ static int gzo_write(struct apk_ostream *os, const void *ptr, size_t size)
 	return 0;
 }
 
-static int gzo_close(struct apk_ostream *os)
+static int gzo_close(struct ps4_ostream *os)
 {
-	struct apk_gzip_ostream *gos = container_of(os, struct apk_gzip_ostream, os);
+	struct ps4_gzip_ostream *gos = container_of(os, struct ps4_gzip_ostream, os);
 	unsigned char buffer[1024];
 	size_t have;
 	int r, rc = os->rc;
@@ -222,31 +222,31 @@ static int gzo_close(struct apk_ostream *os)
 		gos->zs.next_out = buffer;
 		r = deflate(&gos->zs, Z_FINISH);
 		have = sizeof(buffer) - gos->zs.avail_out;
-		if (apk_ostream_write(gos->output, buffer, have) < 0)
+		if (ps4_ostream_write(gos->output, buffer, have) < 0)
 			break;
 	} while (r == Z_OK);
-	r = apk_ostream_close(gos->output);
+	r = ps4_ostream_close(gos->output);
 	deflateEnd(&gos->zs);
 	free(gos);
 
 	return rc ?: r;
 }
 
-static const struct apk_ostream_ops gzip_ostream_ops = {
+static const struct ps4_ostream_ops gzip_ostream_ops = {
 	.write = gzo_write,
 	.close = gzo_close,
 };
 
-struct apk_ostream *apk_ostream_zlib(struct apk_ostream *output, int raw, uint8_t level)
+struct ps4_ostream *ps4_ostream_zlib(struct ps4_ostream *output, int raw, uint8_t level)
 {
-	struct apk_gzip_ostream *gos;
+	struct ps4_gzip_ostream *gos;
 
 	if (IS_ERR(output)) return ERR_CAST(output);
 
-	gos = malloc(sizeof(struct apk_gzip_ostream));
+	gos = malloc(sizeof(struct ps4_gzip_ostream));
 	if (gos == NULL) goto err;
 
-	*gos = (struct apk_gzip_ostream) {
+	*gos = (struct ps4_gzip_ostream) {
 		.os.ops = &gzip_ostream_ops,
 		.output = output,
 	};
@@ -259,7 +259,7 @@ struct apk_ostream *apk_ostream_zlib(struct apk_ostream *output, int raw, uint8_
 
 	return &gos->os;
 err:
-	apk_ostream_close(output);
+	ps4_ostream_close(output);
 	return ERR_PTR(-ENOMEM);
 }
 

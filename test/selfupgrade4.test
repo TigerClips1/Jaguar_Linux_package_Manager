@@ -1,7 +1,7 @@
 @ARGS
 --test-repo selfupgrade.repo
 --test-instdb selfupgrade3.installed
---test-world "apk-tools"
+--test-world "ps4-tools"
 --self-upgrade-only
 upgrade
 @EXPECT

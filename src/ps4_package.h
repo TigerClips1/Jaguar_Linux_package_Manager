@@ -56,7 +56,7 @@ struct ps4_installed_package {
 	struct list_head installed_pkgs_list;
 	struct list_head trigger_pkgs_list;
 	struct hlist_head owned_dirs;
-	ps4_blob_t script[ps4_SCRIPT_MAX];
+	ps4_blob_t script[PS4_SCRIPT_MAX];
 	struct ps4_string_array *triggers;
 	struct ps4_string_array *pending_triggers;
 	struct ps4_dependency_array *replaces;
@@ -124,7 +124,7 @@ PS4_ARRAY(ps4_package_array, struct ps4_package *);
 
 extern const char *ps4_script_types[];
 
-static inline int ps4_dep_conflict(const struct ps4_dependency *dep) { return !!(dep->op & ps4_VERSION_CONFLICT); }
+static inline int ps4_dep_conflict(const struct ps4_dependency *dep) { return !!(dep->op & PS4_VERSION_CONFLICT); }
 void ps4_dep_from_pkg(struct ps4_dependency *dep, struct ps4_database *db,
 		      struct ps4_package *pkg);
 int ps4_dep_is_materialized(const struct ps4_dependency *dep, const struct ps4_package *pkg);

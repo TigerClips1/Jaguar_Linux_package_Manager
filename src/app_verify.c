@@ -1,4 +1,4 @@
-/* app_verify.c - Alpine Package Keeper (APK)
+/* app_verify.c -  PS4linux package manager (PS4)
  *
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
  * All rights reserved.
@@ -11,35 +11,35 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "apk_applet.h"
-#include "apk_print.h"
-#include "apk_extract.h"
+#include "ps4_applet.h"
+#include "ps4_print.h"
+#include "ps4_extract.h"
 
-static int verify_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int verify_main(void *ctx, struct ps4_ctx *ac, struct ps4_string_array *args)
 {
-	struct apk_out *out = &ac->out;
-	struct apk_extract_ctx ectx;
+	struct ps4_out *out = &ac->out;
+	struct ps4_extract_ctx ectx;
 	char **parg;
 	int r, rc = 0;
 
 	foreach_array_item(parg, args) {
-		apk_extract_init(&ectx, ac, 0);
-		r = apk_extract(&ectx, apk_istream_from_file(AT_FDCWD, *parg));
-		if (apk_out_verbosity(out) >= 1)
-			apk_msg(out, "%s: %s", *parg,
-				r < 0 ? apk_error_str(r) : "OK");
+		ps4_extract_init(&ectx, ac, 0);
+		r = ps4_extract(&ectx, ps4_istream_from_file(AT_FDCWD, *parg));
+		if (ps4_out_verbosity(out) >= 1)
+			ps4_msg(out, "%s: %s", *parg,
+				r < 0 ? ps4_error_str(r) : "OK");
 		else if (r < 0)
-			apk_out(out, "%s", *parg);
+			ps4_out(out, "%s", *parg);
 		if (r < 0) rc++;
 	}
 
 	return rc;
 }
 
-static struct apk_applet apk_verify_applet = {
+static struct ps4_applet ps4_verify_applet = {
 	.name = "verify",
 	.main = verify_main,
 };
 
-APK_DEFINE_APPLET(apk_verify_applet);
+PS4_DEFINE_APPLET(ps4_verify_applet);
 

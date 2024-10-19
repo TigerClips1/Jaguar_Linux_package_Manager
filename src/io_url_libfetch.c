@@ -1,4 +1,4 @@
-/* io_url_libfetch.c - Alpine Package Keeper (APK)
+/* io_url_libfetch.c - PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -16,10 +16,10 @@
 
 #include <fetch.h>
 
-#include "apk_io.h"
+#include "ps4_io.h"
 
-struct apk_fetch_istream {
-	struct apk_istream is;
+struct ps4_fetch_istream {
+	struct ps4_istream is;
 	fetchIO *fetchIO;
 	struct url_stat urlstat;
 };
@@ -38,13 +38,13 @@ static int fetch_maperror(int ec)
 		[FETCH_NETWORK] = -ENETUNREACH,
 		/* [FETCH_OK] = , */
 		[FETCH_PROTO] = -EPROTO,
-		[FETCH_RESOLV] = -APKE_DNS,
-		[FETCH_SERVER] = -APKE_REMOTE_IO,
+		[FETCH_RESOLV] = -PS4E_DNS,
+		[FETCH_SERVER] = -PS4E_REMOTE_IO,
 		[FETCH_TEMP] = -EAGAIN,
 		[FETCH_TIMEOUT] = -ETIMEDOUT,
 		[FETCH_UNAVAIL] = -ENOENT,
 		[FETCH_UNKNOWN] = -EIO,
-		[FETCH_URL] = -APKE_URL_FORMAT,
+		[FETCH_URL] = -PS4E_URL_FORMAT,
 		[FETCH_UNCHANGED] = -EALREADY,
 	};
 
@@ -52,19 +52,19 @@ static int fetch_maperror(int ec)
 	return map[ec];
 }
 
-static void fetch_get_meta(struct apk_istream *is, struct apk_file_meta *meta)
+static void fetch_get_meta(struct ps4_istream *is, struct ps4_file_meta *meta)
 {
-	struct apk_fetch_istream *fis = container_of(is, struct apk_fetch_istream, is);
+	struct ps4_fetch_istream *fis = container_of(is, struct ps4_fetch_istream, is);
 
-	*meta = (struct apk_file_meta) {
+	*meta = (struct ps4_file_meta) {
 		.atime = fis->urlstat.atime,
 		.mtime = fis->urlstat.mtime,
 	};
 }
 
-static ssize_t fetch_read(struct apk_istream *is, void *ptr, size_t size)
+static ssize_t fetch_read(struct ps4_istream *is, void *ptr, size_t size)
 {
-	struct apk_fetch_istream *fis = container_of(is, struct apk_fetch_istream, is);
+	struct ps4_fetch_istream *fis = container_of(is, struct ps4_fetch_istream, is);
 	ssize_t r;
 
 	r = fetchIO_read(fis->fetchIO, ptr, size);
@@ -72,25 +72,25 @@ static ssize_t fetch_read(struct apk_istream *is, void *ptr, size_t size)
 	return r;
 }
 
-static int fetch_close(struct apk_istream *is)
+static int fetch_close(struct ps4_istream *is)
 {
 	int r = is->err;
-	struct apk_fetch_istream *fis = container_of(is, struct apk_fetch_istream, is);
+	struct ps4_fetch_istream *fis = container_of(is, struct ps4_fetch_istream, is);
 
 	fetchIO_close(fis->fetchIO);
 	free(fis);
 	return r < 0 ? r : 0;
 }
 
-static const struct apk_istream_ops fetch_istream_ops = {
+static const struct ps4_istream_ops fetch_istream_ops = {
 	.get_meta = fetch_get_meta,
 	.read = fetch_read,
 	.close = fetch_close,
 };
 
-struct apk_istream *apk_io_url_istream(const char *url, time_t since)
+struct ps4_istream *ps4_io_url_istream(const char *url, time_t since)
 {
-	struct apk_fetch_istream *fis = NULL;
+	struct ps4_fetch_istream *fis = NULL;
 	struct url *u;
 	char *flags = "Ci";
 	fetchIO *io = NULL;
@@ -98,16 +98,16 @@ struct apk_istream *apk_io_url_istream(const char *url, time_t since)
 
 	u = fetchParseURL(url);
 	if (!u) {
-		rc = -APKE_URL_FORMAT;
+		rc = -PS4E_URL_FORMAT;
 		goto err;
 	}
-	fis = malloc(sizeof *fis + apk_io_bufsize);
+	fis = malloc(sizeof *fis + ps4_io_bufsize);
 	if (!fis) {
 		rc = -ENOMEM;
 		goto err;
 	}
 
-	if (since != APK_ISTREAM_FORCE_REFRESH) {
+	if (since != PS4_ISTREAM_FORCE_REFRESH) {
 		u->last_modified = since;
 		flags = "i";
 	}
@@ -118,10 +118,10 @@ struct apk_istream *apk_io_url_istream(const char *url, time_t since)
 		goto err;
 	}
 
-	*fis = (struct apk_fetch_istream) {
+	*fis = (struct ps4_fetch_istream) {
 		.is.ops = &fetch_istream_ops,
 		.is.buf = (uint8_t*)(fis+1),
-		.is.buf_size = apk_io_bufsize,
+		.is.buf_size = ps4_io_bufsize,
 		.fetchIO = io,
 		.urlstat = fis->urlstat,
 	};
@@ -151,29 +151,29 @@ static void fetch_redirect(int code, const struct url *cur, const struct url *ne
 	}
 }
 
-void apk_io_url_no_check_certificate(void)
+void ps4_io_url_no_check_certificate(void)
 {
 	fetch_no_check_certificate();
 }
 
-void apk_io_url_set_timeout(int timeout)
+void ps4_io_url_set_timeout(int timeout)
 {
 	fetchTimeout = timeout;
 }
 
-void apk_io_url_set_redirect_callback(void (*cb)(int, const char *))
+void ps4_io_url_set_redirect_callback(void (*cb)(int, const char *))
 {
 	fetchRedirectMethod = cb ? fetch_redirect : NULL;
 	io_url_redirect_callback = cb;
 }
 
-static void apk_io_url_fini(void)
+static void ps4_io_url_fini(void)
 {
 	fetchConnectionCacheClose();
 }
 
-void apk_io_url_init(void)
+void ps4_io_url_init(void)
 {
 	fetchConnectionCacheInit(32, 4);
-	atexit(apk_io_url_fini);
+	atexit(ps4_io_url_fini);
 }

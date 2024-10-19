@@ -1,9 +1,14 @@
 {
     "files.associations": {
-        "apk_defines.h": "c",
+        "ps4_defines.h": "c",
         "charconv": "c",
         "chrono": "c",
         "text_encoding": "c",
-        "typeinfo": "c"
-    }
+        "typeinfo": "c",
+        "dirent.h": "c",
+        "errno.h": "c",
+        "unistd.h": "c",
+        "ps4_crypto.h": "c",
+        "ps4_applet.h": "c"
+    },
 }

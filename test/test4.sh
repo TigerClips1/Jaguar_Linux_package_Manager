@@ -6,12 +6,12 @@
 mkdir -p "$ROOT"
 touch "$ROOT"/should-fail
 
-! $APK add --root $ROOT --initdb --repository $PWD/repo1 --repository $SYSREPO \
+! $PS4 add --root $ROOT --initdb --repository $PWD/repo1 --repository $SYSREPO \
 	-U test-c
 
 # check that pre-install was executed
 test -f $ROOT/pre-install
 
 # check that package was installed
-$APK info --root $ROOT -e test-c
+$PS4 info --root $ROOT -e test-c
 

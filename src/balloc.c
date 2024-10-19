@@ -1,4 +1,4 @@
-/* balloc.c - Alpine Package Keeper (APK)
+/* balloc.c -  PS4linux package manager (PS4)
  *
  * Copyright (C) 2024 Timo Teräs <timo.teras@iki.fi>
  * All rights reserved.
@@ -7,21 +7,21 @@
  */
 
 #include <stdlib.h>
-#include "apk_defines.h"
-#include "apk_balloc.h"
+#include "ps4_defines.h"
+#include "ps4_balloc.h"
 
-struct apk_balloc_page {
+struct ps4_balloc_page {
 	struct hlist_node pages_list;
 };
 
-void apk_balloc_init(struct apk_balloc *ba, size_t page_size)
+void ps4_balloc_init(struct ps4_balloc *ba, size_t page_size)
 {
-	*ba = (struct apk_balloc) { .page_size = page_size };
+	*ba = (struct ps4_balloc) { .page_size = page_size };
 }
 
-void apk_balloc_destroy(struct apk_balloc *ba)
+void ps4_balloc_destroy(struct ps4_balloc *ba)
 {
-	struct apk_balloc_page *p;
+	struct ps4_balloc_page *p;
 	struct hlist_node *pn, *pc;
 
 	hlist_for_each_entry_safe(p, pc, pn, &ba->pages_head, pages_list)
@@ -29,12 +29,12 @@ void apk_balloc_destroy(struct apk_balloc *ba)
 	memset(ba, 0, sizeof *ba);
 }
 
-void *apk_balloc_aligned(struct apk_balloc *ba, size_t size, size_t align)
+void *ps4_balloc_aligned(struct ps4_balloc *ba, size_t size, size_t align)
 {
 	uintptr_t ptr = ROUND_UP(ba->cur, align);
 	if (ptr + size > ba->end) {
 		size_t page_size = max(ba->page_size, size);
-		struct apk_balloc_page *bp = malloc(page_size + sizeof(struct apk_balloc_page));
+		struct ps4_balloc_page *bp = malloc(page_size + sizeof(struct ps4_balloc_page));
 		hlist_add_head(&bp->pages_list, &ba->pages_head);
 		ba->cur = (intptr_t)bp + sizeof *bp;
 		ba->end = (intptr_t)bp + page_size;
@@ -44,9 +44,9 @@ void *apk_balloc_aligned(struct apk_balloc *ba, size_t size, size_t align)
 	return (void *) ptr;
 }
 
-void *apk_balloc_aligned0(struct apk_balloc *ba, size_t size, size_t align)
+void *ps4_balloc_aligned0(struct ps4_balloc *ba, size_t size, size_t align)
 {
-	void *ptr = apk_balloc_aligned(ba, size, align);
+	void *ptr = ps4_balloc_aligned(ba, size, align);
 	memset(ptr, 0, size);
 	return ptr;
 }

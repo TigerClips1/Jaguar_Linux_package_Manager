@@ -4,13 +4,13 @@ get_block() {
 	awk '/^@'$1'/{p=1;next} /^@/{p=0} p{print}'
 }
 
-APK_TEST="$VALGRIND ../src/apk-test"
+PS4_TEST="$VALGRIND ../src/ps4-test"
 TEST_TO_RUN="$@"
 
 fail=0
 pass=0
 for test in ${TEST_TO_RUN:-*.test}; do
-	get_block ARGS < $test | xargs $APK_TEST > .$test.got 2>&1
+	get_block ARGS < $test | xargs $PS4_TEST > .$test.got 2>&1
 
 	if ! get_block EXPECT < $test | cmp .$test.got > /dev/null 2>&1; then
 		fail=$((fail+1))

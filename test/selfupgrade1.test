@@ -1,10 +1,10 @@
 @ARGS
 --test-repo selfupgrade.repo
 --test-instdb selfupgrade1.installed
---test-world "apk-tools application"
+--test-world "ps4-tools application"
 --self-upgrade-only
 upgrade
 @EXPECT
-Upgrading critical system libraries and apk-tools:
+Upgrading critical system libraries and ps4-tools:
 (1/2) Upgrading libcrypto (1 -> 2)
-(2/2) Upgrading apk-tools (1 -> 2)
+(2/2) Upgrading ps4-tools (1 -> 2)

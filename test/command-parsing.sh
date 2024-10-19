@@ -2,8 +2,8 @@
 
 fail=0
 
-help_output=$(../src/apk version --help 2>/dev/null)
-invalid_option_output="$(../src/apk --invalid-option version 2>/dev/null)"
+help_output=$(../src/ps4 version --help 2>/dev/null)
+invalid_option_output="$(../src/ps4 --invalid-option version 2>/dev/null)"
 if [ "$help_output" != "$invalid_option_output" ]; then
 	echo "FAIL: invalid option does not trigger help"
 	fail=$((fail+1))

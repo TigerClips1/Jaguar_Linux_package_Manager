@@ -1,6 +1,6 @@
 src
 pkg
-*.apk
+*.ps4
 *.tar.gz
 conf.mk
 
