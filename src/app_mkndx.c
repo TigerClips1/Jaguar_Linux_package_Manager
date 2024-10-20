@@ -1,4 +1,4 @@
-/* app_mkndx.c - Alpine Package Keeper (APK)
+/* app_mkndx.c -  PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2020 Timo Teräs <timo.teras@iki.fi>
@@ -15,56 +15,56 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include "apk_adb.h"
-#include "apk_applet.h"
-#include "apk_database.h"
-#include "apk_extract.h"
-#include "apk_print.h"
+#include "ps4_adb.h"
+#include "ps4_applet.h"
+#include "ps4_database.h"
+#include "ps4_extract.h"
+#include "ps4_print.h"
 
 struct mkndx_ctx {
 	const char *index;
 	const char *output;
 	const char *description;
-	apk_blob_t rewrite_arch;
+	ps4_blob_t rewrite_arch;
 
-	apk_blob_t r;
+	ps4_blob_t r;
 	struct adb db;
 	struct adb_obj pkgs;
 	struct adb_obj pkginfo;
 	time_t index_mtime;
 	uint8_t hash_alg;
 
-	struct apk_extract_ctx ectx;
+	struct ps4_extract_ctx ectx;
 	size_t file_size;
 };
 
-#define ALLOWED_HASH (BIT(APK_DIGEST_SHA256)|BIT(APK_DIGEST_SHA256_160))
+#define ALLOWED_HASH (BIT(ps4_DIGEST_SHA256)|BIT(ps4_DIGEST_SHA256_160))
 
 #define MKNDX_OPTIONS(OPT) \
-	OPT(OPT_MKNDX_description,	APK_OPT_ARG APK_OPT_SH("d") "description") \
-	OPT(OPT_MKNDX_hash,		APK_OPT_ARG "hash") \
-	OPT(OPT_MKNDX_index,		APK_OPT_ARG APK_OPT_SH("x") "index") \
-	OPT(OPT_MKNDX_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
-	OPT(OPT_MKNDX_rewrite_arch,	APK_OPT_ARG "rewrite-arch")
+	OPT(OPT_MKNDX_description,	PS4_OPT_ARG PS4_OPT_SH("d") "description") \
+	OPT(OPT_MKNDX_hash,		PS4_OPT_ARG "hash") \
+	OPT(OPT_MKNDX_index,		PS4_OPT_ARG PS4_OPT_SH("x") "index") \
+	OPT(OPT_MKNDX_output,		PS4_OPT_ARG PS4_OPT_SH("o") "output") \
+	OPT(OPT_MKNDX_rewrite_arch,	PS4_OPT_ARG "rewrite-arch")
 
-APK_OPT_APPLET(option_desc, MKNDX_OPTIONS);
+PS4_OPT_APPLET(option_desc, MKNDX_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
+static int option_parse_applet(void *ctx, struct ps4_ctx *ac, int optch, const char *optarg)
 {
 	struct mkndx_ctx *ictx = ctx;
-	struct apk_out *out = &ac->out;
+	struct ps4_out *out = &ac->out;
 
 	switch (optch) {
-	case APK_OPTIONS_INIT:
-		ictx->hash_alg = APK_DIGEST_SHA256;
+	case PS4_OPTIONS_INIT:
+		ictx->hash_alg = PS4_DIGEST_SHA256;
 		break;
 	case OPT_MKNDX_description:
 		ictx->description = optarg;
 		break;
 	case OPT_MKNDX_hash:
-		ictx->hash_alg = apk_digest_alg_by_str(optarg);
+		ictx->hash_alg = ps4_digest_alg_by_str(optarg);
 		if (!(BIT(ictx->hash_alg) & ALLOWED_HASH)) {
-			apk_err(out, "hash '%s' not recognized or allowed", optarg);
+			ps4_err(out, "hash '%s' not recognized or allowed", optarg);
 			return -EINVAL;
 		}
 		break;
@@ -75,7 +75,7 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 		ictx->output = optarg;
 		break;
 	case OPT_MKNDX_rewrite_arch:
-		ictx->rewrite_arch = APK_BLOB_STR(optarg);
+		ictx->rewrite_arch = PS4_BLOB_STR(optarg);
 		break;
 	default:
 		return -ENOTSUP;
@@ -83,24 +83,24 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int optch, const c
 	return 0;
 }
 
-static const struct apk_option_group optgroup_applet = {
+static const struct ps4_option_group optgroup_applet = {
 	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 
 struct field {
-	apk_blob_t str;
+	ps4_blob_t str;
 	unsigned int ndx;
 };
-#define FIELD(s, n) { .str = APK_BLOB_STRLIT(s), .ndx = n }
+#define FIELD(s, n) { .str = PS4_BLOB_STRLIT(s), .ndx = n }
 
 static int cmpfield(const void *pa, const void *pb)
 {
 	const struct field *a = pa, *b = pb;
-	return apk_blob_sort(a->str, b->str);
+	return ps4_blob_sort(a->str, b->str);
 }
 
-static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *is)
+static int mkndx_parse_v2meta(struct ps4_extract_ctx *ectx, struct ps4_istream *is)
 {
 	static struct field fields[]  = {
 		FIELD("arch",			ADBI_PI_ARCH),
@@ -128,17 +128,17 @@ static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *
 	struct field *f, key;
 	struct adb *db = &ctx->db;
 	struct adb_obj deps[3];
-	apk_blob_t line, k, v, token = APK_BLOB_STR("\n"), bdep;
+	ps4_blob_t line, k, v, token = PS4_BLOB_STR("\n"), bdep;
 	int r, e = 0, i = 0;
 
 	adb_wo_alloca(&deps[0], &schema_dependency_array, db);
 	adb_wo_alloca(&deps[1], &schema_dependency_array, db);
 	adb_wo_alloca(&deps[2], &schema_dependency_array, db);
 
-	while ((r = apk_istream_get_delim(is, token, &line)) == 0) {
+	while ((r = ps4_istream_get_delim(is, token, &line)) == 0) {
 		if (line.len < 1 || line.ptr[0] == '#') continue;
-		if (!apk_blob_split(line, APK_BLOB_STR(" = "), &k, &v)) continue;
-		apk_extract_v2_control(ectx, k, v);
+		if (!ps4_blob_split(line, PS4_BLOB_STR(" = "), &k, &v)) continue;
+		ps4_extract_v2_control(ectx, k, v);
 
 		key.str = k;
 		f = bsearch(&key, fields, ARRAY_SIZE(fields), sizeof(fields[0]), cmpfield);
@@ -147,12 +147,12 @@ static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *
 		if (adb_ro_val(&ctx->pkginfo, f->ndx) != ADB_NULL) {
 			/* Workaround abuild bug that emitted multiple license lines */
 			if (f->ndx == ADBI_PI_LICENSE) continue;
-			return ADB_ERROR(APKE_ADB_PACKAGE_FORMAT);
+			return ADB_ERROR(PS4E_ADB_PACKAGE_FORMAT);
 		}
 
 		switch (f->ndx) {
 		case ADBI_PI_ARCH:
-			if (!APK_BLOB_IS_NULL(ctx->rewrite_arch)) v = ctx->rewrite_arch;
+			if (!PS4_BLOB_IS_NULL(ctx->rewrite_arch)) v = ctx->rewrite_arch;
 			break;
 		case ADBI_PI_DEPENDS:
 			i = 0;
@@ -163,7 +163,7 @@ static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *
 		case ADBI_PI_REPLACES:
 			i = 2;
 		parse_deps:
-			while (apk_dep_split(&v, &bdep)) {
+			while (ps4_dep_split(&v, &bdep)) {
 				e = adb_wa_append_fromstring(&deps[i], bdep);
 				if (ADB_IS_ERROR(e)) return e;
 			}
@@ -171,7 +171,7 @@ static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *
 		}
 		adb_wo_pkginfo(&ctx->pkginfo, f->ndx, v);
 	}
-	if (r != -APKE_EOF) return ADB_ERROR(-r);
+	if (r != -PS4E_EOF) return ADB_ERROR(-r);
 
 	adb_wo_arr(&ctx->pkginfo, ADBI_PI_DEPENDS, &deps[0]);
 	adb_wo_arr(&ctx->pkginfo, ADBI_PI_PROVIDES, &deps[1]);
@@ -180,7 +180,7 @@ static int mkndx_parse_v2meta(struct apk_extract_ctx *ectx, struct apk_istream *
 	return 0;
 }
 
-static int mkndx_parse_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
+static int mkndx_parse_v3meta(struct ps4_extract_ctx *ectx, struct adb_obj *pkg)
 {
 	struct mkndx_ctx *ctx = container_of(ectx, struct mkndx_ctx, ectx);
 	struct adb_obj pkginfo;
@@ -191,19 +191,19 @@ static int mkndx_parse_v3meta(struct apk_extract_ctx *ectx, struct adb_obj *pkg)
 	return 0;
 }
 
-static const struct apk_extract_ops extract_ndxinfo_ops = {
+static const struct ps4_extract_ops extract_ndxinfo_ops = {
 	.v2meta = mkndx_parse_v2meta,
 	.v3meta = mkndx_parse_v3meta,
 };
 
-static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int mkndx_main(void *pctx, struct ps4_ctx *ac, struct ps4_string_array *args)
 {
-	struct apk_out *out = &ac->out;
-	struct apk_trust *trust = apk_ctx_get_trust(ac);
+	struct ps4_out *out = &ac->out;
+	struct ps4_trust *trust = ps4_ctx_get_trust(ac);
 	struct adb odb, tmpdb;
 	struct adb_obj oroot, opkgs, ndx, tmpl;
-	struct apk_file_info fi;
-	struct apk_digest digest;
+	struct ps4_file_info fi;
+	struct ps4_digest digest;
 	adb_val_t val;
 	int r, found, errors = 0, newpkgs = 0, numpkgs;
 	struct mkndx_ctx *ctx = pctx;
@@ -211,11 +211,11 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	time_t index_mtime = 0;
 
 	if (ctx->output == NULL) {
-		apk_err(out, "Please specify --output FILE");
+		ps4_err(out, "Please specify --output FILE");
 		return -1;
 	}
 
-	apk_extract_init(&ctx->ectx, ac, &extract_ndxinfo_ops);
+	ps4_extract_init(&ctx->ectx, ac, &extract_ndxinfo_ops);
 
 	adb_init(&odb);
 	adb_w_init_tmp(&tmpdb, 200);
@@ -227,24 +227,24 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	adb_wo_alloca(&ctx->pkginfo, &schema_pkginfo, &ctx->db);
 
 	if (ctx->index) {
-		apk_fileinfo_get(AT_FDCWD, ctx->index, 0, &fi, 0);
+		ps4_fileinfo_get(AT_FDCWD, ctx->index, 0, &fi, 0);
 		index_mtime = fi.mtime;
 
 		r = adb_m_open(&odb,
-			adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, ctx->index), NULL),
+			adb_decompress(ps4_istream_from_file_mmap(AT_FDCWD, ctx->index), NULL),
 			ADB_SCHEMA_INDEX, trust);
 		if (r) {
-			apk_err(out, "%s: %s", ctx->index, apk_error_str(r));
+			ps4_err(out, "%s: %s", ctx->index, ps4_error_str(r));
 			goto done;
 		}
 		adb_ro_obj(adb_r_rootobj(&odb, &oroot, &schema_index), ADBI_NDX_PACKAGES, &opkgs);
 	}
 
 	foreach_array_item(parg, args) {
-		r = apk_fileinfo_get(AT_FDCWD, *parg, 0, &fi, 0);
+		r = ps4_fileinfo_get(AT_FDCWD, *parg, 0, &fi, 0);
 		if (r < 0) {
 		err_pkg:
-			apk_err(out, "%s: %s", *parg, apk_error_str(r));
+			ps4_err(out, "%s: %s", *parg, ps4_error_str(r));
 			errors++;
 			continue;
 		}
@@ -253,7 +253,7 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		found = FALSE;
 		if (index_mtime >= fi.mtime) {
 			char *fname, *fend;
-			apk_blob_t bname, bver;
+			ps4_blob_t bname, bver;
 			int i;
 
 			/* Check that it looks like a package name */
@@ -262,9 +262,9 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 				fname = *parg;
 			else
 				fname++;
-			fend = strstr(fname, ".apk");
+			fend = strstr(fname, ".ps4");
 			if (!fend) goto do_file;
-			if (apk_pkg_parse_name(APK_BLOB_PTR_PTR(fname, fend-1),
+			if (ps4_pkg_parse_name(PS4_BLOB_PTR_PTR(fname, fend-1),
 					       &bname, &bver) < 0)
 				goto do_file;
 
@@ -283,14 +283,14 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		}
 		if (!found) {
 		do_file:
-			apk_digest_reset(&digest);
-			apk_extract_reset(&ctx->ectx);
-			apk_extract_generate_identity(&ctx->ectx, ctx->hash_alg, &digest);
-			r = apk_extract(&ctx->ectx, apk_istream_from_file(AT_FDCWD, *parg));
+			ps4_digest_reset(&digest);
+			ps4_extract_reset(&ctx->ectx);
+			ps4_extract_generate_identity(&ctx->ectx, ctx->hash_alg, &digest);
+			r = ps4_extract(&ctx->ectx, ps4_istream_from_file(AT_FDCWD, *parg));
 			if (r < 0 && r != -ECANCELED) goto err_pkg;
 
 			adb_wo_int(&ctx->pkginfo, ADBI_PI_FILE_SIZE, ctx->file_size);
-			adb_wo_blob(&ctx->pkginfo, ADBI_PI_HASHES, APK_DIGEST_BLOB(digest));
+			adb_wo_blob(&ctx->pkginfo, ADBI_PI_HASHES, PS4_DIGEST_BLOB(digest));
 
 			val = adb_wa_append_obj(&ctx->pkgs, &ctx->pkginfo);
 			newpkgs++;
@@ -298,24 +298,24 @@ static int mkndx_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 		if (ADB_IS_ERROR(val)) errors++;
 	}
 	if (errors) {
-		apk_err(out, "%d errors, not creating index", errors);
+		ps4_err(out, "%d errors, not creating index", errors);
 		r = -1;
 		goto done;
 	}
 
 	numpkgs = adb_ra_num(&ctx->pkgs);
-	adb_wo_blob(&ndx, ADBI_NDX_DESCRIPTION, APK_BLOB_STR(ctx->description));
+	adb_wo_blob(&ndx, ADBI_NDX_DESCRIPTION, PS4_BLOB_STR(ctx->description));
 	adb_wo_obj(&ndx, ADBI_NDX_PACKAGES, &ctx->pkgs);
 	adb_w_rootobj(&ndx);
 
 	r = adb_c_create(
-		adb_compress(apk_ostream_to_file(AT_FDCWD, ctx->output, 0644), &ac->compspec),
+		adb_compress(ps4_ostream_to_file(AT_FDCWD, ctx->output, 0644), &ac->compspec),
 		&ctx->db, trust);
 
 	if (r == 0)
-		apk_msg(out, "Index has %d packages (of which %d are new)", numpkgs, newpkgs);
+		ps4_msg(out, "Index has %d packages (of which %d are new)", numpkgs, newpkgs);
 	else
-		apk_err(out, "Index creation failed: %s", apk_error_str(r));
+		ps4_err(out, "Index creation failed: %s", ps4_error_str(r));
 
 done:
 	adb_wo_free(&ctx->pkgs);
@@ -323,10 +323,10 @@ done:
 	adb_free(&odb);
 
 #if 0
-	apk_hash_foreach(&db->available.names, warn_if_no_providers, &counts);
+	ps4_hash_foreach(&db->available.names, warn_if_no_providers, &counts);
 
 	if (counts.unsatisfied != 0)
-		apk_warn(out,
+		ps4_warn(out,
 			"Total of %d unsatisfiable package names. Your repository may be broken.",
 			counts.unsatisfied);
 #endif
@@ -334,11 +334,11 @@ done:
 	return r;
 }
 
-static struct apk_applet apk_mkndx = {
+static struct ps4_applet ps4_mkndx = {
 	.name = "mkndx",
 	.context_size = sizeof(struct mkndx_ctx),
 	.optgroups = { &optgroup_global, &optgroup_generation, &optgroup_applet },
 	.main = mkndx_main,
 };
 
-APK_DEFINE_APPLET(apk_mkndx);
+PS4_DEFINE_APPLET(ps4_mkndx);

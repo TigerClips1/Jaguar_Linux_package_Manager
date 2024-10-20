@@ -1,4 +1,4 @@
-/* app_stats.c - Alpine Package Keeper (APK)
+/* app_stats.c -  PS4linux package manager (PS4)
  *
  * Copyright (C) 2013 Timo Teräs <timo.teras@iki.fi>
  * All rights reserved.
@@ -7,9 +7,9 @@
  */
 
 #include <stdio.h>
-#include "apk_defines.h"
-#include "apk_applet.h"
-#include "apk_database.h"
+#include "ps4_defines.h"
+#include "ps4_applet.h"
+#include "ps4_database.h"
 
 static int list_count(struct list_head *h)
 {
@@ -22,12 +22,12 @@ static int list_count(struct list_head *h)
 	return c;
 }
 
-static int stats_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int stats_main(void *ctx, struct ps4_ctx *ac, struct ps4_string_array *args)
 {
-	struct apk_out *out = &ac->out;
-	struct apk_database *db = ac->db;
+	struct ps4_out *out = &ac->out;
+	struct ps4_database *db = ac->db;
 
-	apk_out(out,
+	ps4_out(out,
 		"installed:\n"
 		"  packages: %d\n"
 		"  dirs: %d\n"
@@ -52,12 +52,12 @@ static int stats_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 	return 0;
 }
 
-static struct apk_applet stats_applet = {
+static struct ps4_applet stats_applet = {
 	.name = "stats",
-	.open_flags = APK_OPENF_READ,
+	.open_flags = PS4_OPENF_READ,
 	.main = stats_main,
 };
 
-APK_DEFINE_APPLET(stats_applet);
+PS4_DEFINE_APPLET(stats_applet);
 
 

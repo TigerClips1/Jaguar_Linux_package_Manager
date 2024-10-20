@@ -1,4 +1,4 @@
-/* app_search.c - Alpine Package Keeper (APK)
+/* app_search.c -  PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2009 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -9,14 +9,14 @@
 
 #include <fnmatch.h>
 #include <stdio.h>
-#include "apk_defines.h"
-#include "apk_applet.h"
-#include "apk_package.h"
-#include "apk_database.h"
+#include "ps4_defines.h"
+#include "ps4_applet.h"
+#include "ps4_package.h"
+#include "ps4_database.h"
 
 struct search_ctx {
-	void (*print_result)(struct search_ctx *ctx, struct apk_package *pkg);
-	void (*print_package)(struct search_ctx *ctx, struct apk_package *pkg);
+	void (*print_result)(struct search_ctx *ctx, struct ps4_package *pkg);
+	void (*print_package)(struct search_ctx *ctx, struct ps4_package *pkg);
 
 	int verbosity;
 	unsigned int show_all : 1;
@@ -25,11 +25,11 @@ struct search_ctx {
 	unsigned int search_origin : 1;
 
 	unsigned int matches;
-	struct apk_string_array *filter;
-	struct apk_package *prev_match;
+	struct ps4_string_array *filter;
+	struct ps4_package *prev_match;
 };
 
-static void print_package_name(struct search_ctx *ctx, struct apk_package *pkg)
+static void print_package_name(struct search_ctx *ctx, struct ps4_package *pkg)
 {
 	printf("%s", pkg->name->name);
 	if (ctx->verbosity > 0)
@@ -39,7 +39,7 @@ static void print_package_name(struct search_ctx *ctx, struct apk_package *pkg)
 	printf("\n");
 }
 
-static void print_origin_name(struct search_ctx *ctx, struct apk_package *pkg)
+static void print_origin_name(struct search_ctx *ctx, struct ps4_package *pkg)
 {
 	if (pkg->origin != NULL)
 		printf(BLOB_FMT, BLOB_PRINTF(*pkg->origin));
@@ -50,32 +50,32 @@ static void print_origin_name(struct search_ctx *ctx, struct apk_package *pkg)
 	printf("\n");
 }
 
-static void print_rdep_pkg(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *pctx)
+static void print_rdep_pkg(struct ps4_package *pkg0, struct ps4_dependency *dep0, struct ps4_package *pkg, void *pctx)
 {
 	struct search_ctx *ctx = (struct search_ctx *) pctx;
 	ctx->print_package(ctx, pkg0);
 }
 
-static void print_rdepends(struct search_ctx *ctx, struct apk_package *pkg)
+static void print_rdepends(struct search_ctx *ctx, struct ps4_package *pkg)
 {
 	if (ctx->verbosity > 0) {
-		ctx->matches = apk_foreach_genid() | APK_DEP_SATISFIES;
+		ctx->matches = ps4_foreach_genid() | PS4_DEP_SATISFIES;
 		printf(PKG_VER_FMT " is required by:\n", PKG_VER_PRINTF(pkg));
 	}
-	apk_pkg_foreach_reverse_dependency(pkg, ctx->matches, print_rdep_pkg, ctx);
+	ps4_pkg_foreach_reverse_dependency(pkg, ctx->matches, print_rdep_pkg, ctx);
 }
 
 #define SEARCH_OPTIONS(OPT) \
-	OPT(OPT_SEARCH_all,		APK_OPT_SH("a") "all") \
-	OPT(OPT_SEARCH_description,	APK_OPT_SH("d") "description") \
-	OPT(OPT_SEARCH_exact,		APK_OPT_S2("ex") "exact") \
+	OPT(OPT_SEARCH_all,		PS4_OPT_SH("a") "all") \
+	OPT(OPT_SEARCH_description,	PS4_OPT_SH("d") "description") \
+	OPT(OPT_SEARCH_exact,		PS4_OPT_S2("ex") "exact") \
 	OPT(OPT_SEARCH_has_origin,	"has-origin") \
-	OPT(OPT_SEARCH_origin,		APK_OPT_SH("o") "origin") \
-	OPT(OPT_SEARCH_rdepends,	APK_OPT_SH("r") "rdepends") \
+	OPT(OPT_SEARCH_origin,		PS4_OPT_SH("o") "origin") \
+	OPT(OPT_SEARCH_rdepends,	PS4_OPT_SH("r") "rdepends") \
 
-APK_OPT_APPLET(option_desc, SEARCH_OPTIONS);
+PS4_OPT_APPLET(option_desc, SEARCH_OPTIONS);
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int option_parse_applet(void *ctx, struct ps4_ctx *ac, int opt, const char *optarg)
 {
 	struct search_ctx *ictx = (struct search_ctx *) ctx;
 
@@ -107,12 +107,12 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 	return 0;
 }
 
-static const struct apk_option_group optgroup_applet = {
+static const struct ps4_option_group optgroup_applet = {
 	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 
-static void print_result_pkg(struct search_ctx *ctx, struct apk_package *pkg)
+static void print_result_pkg(struct search_ctx *ctx, struct ps4_package *pkg)
 {
 	char **pmatch;
 
@@ -127,7 +127,7 @@ static void print_result_pkg(struct search_ctx *ctx, struct apk_package *pkg)
 	if (ctx->search_origin) {
 		foreach_array_item(pmatch, ctx->filter) {
 			if (!pkg->origin) continue;
-			if (apk_blob_compare(APK_BLOB_STR(*pmatch), *pkg->origin) == 0)
+			if (ps4_blob_compare(PS4_BLOB_STR(*pmatch), *pkg->origin) == 0)
 				goto match;
 		}
 		return;
@@ -136,7 +136,7 @@ match:
 	ctx->print_result(ctx, pkg);
 }
 
-static int print_result(struct apk_database *db, const char *match, struct apk_package *pkg, void *pctx)
+static int print_result(struct ps4_database *db, const char *match, struct ps4_package *pkg, void *pctx)
 {
 	struct search_ctx *ctx = pctx;
 
@@ -156,20 +156,20 @@ static int print_result(struct apk_database *db, const char *match, struct apk_p
 		ctx->prev_match = pkg;
 		return 0;
 	}
-	if (apk_pkg_version_compare(pkg, ctx->prev_match) == APK_VERSION_GREATER)
+	if (ps4_pkg_version_compare(pkg, ctx->prev_match) == PS4_VERSION_GREATER)
 		ctx->prev_match = pkg;
 	return 0;
 }
 
-static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int search_main(void *pctx, struct ps4_ctx *ac, struct ps4_string_array *args)
 {
-	struct apk_database *db = ac->db;
+	struct ps4_database *db = ac->db;
 	struct search_ctx *ctx = (struct search_ctx *) pctx;
 	char *tmp, **pmatch;
 
-	ctx->verbosity = apk_out_verbosity(&db->ctx->out);
+	ctx->verbosity = ps4_out_verbosity(&db->ctx->out);
 	ctx->filter = args;
-	ctx->matches = apk_foreach_genid() | APK_DEP_SATISFIES;
+	ctx->matches = ps4_foreach_genid() | PS4_DEP_SATISFIES;
 	if (ctx->print_package == NULL)
 		ctx->print_package = print_package_name;
 	if (ctx->print_result == NULL)
@@ -188,18 +188,18 @@ static int search_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 			*pmatch = tmp;
 		}
 	}
-	apk_db_foreach_sorted_providers(db, args, print_result, ctx);
+	ps4_db_foreach_sorted_providers(db, args, print_result, ctx);
 	if (ctx->prev_match) print_result_pkg(ctx, ctx->prev_match);
 
 	return 0;
 }
 
-static struct apk_applet apk_search = {
+static struct ps4_applet ps4_search = {
 	.name = "search",
-	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_ALLOW_ARCH,
+	.open_flags = PS4_OPENF_READ | PS4_OPENF_NO_STATE | PS4_OPENF_ALLOW_ARCH,
 	.context_size = sizeof(struct search_ctx),
 	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
 	.main = search_main,
 };
 
-APK_DEFINE_APPLET(apk_search);
+PS4_DEFINE_APPLET(ps4_search);

@@ -1,4 +1,4 @@
-/* app_update.c - Alpine Package Keeper (APK)
+/* app_update.c -  PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -8,32 +8,32 @@
  */
 
 #include <stdio.h>
-#include "apk_defines.h"
-#include "apk_applet.h"
-#include "apk_database.h"
-#include "apk_version.h"
-#include "apk_print.h"
+#include "ps4_defines.h"
+#include "ps4_applet.h"
+#include "ps4_database.h"
+#include "ps4_version.h"
+#include "ps4_print.h"
 
-static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int update_main(void *ctx, struct ps4_ctx *ac, struct ps4_string_array *args)
 {
-	struct apk_out *out = &ac->out;
-	struct apk_database *db = ac->db;
-	struct apk_repository *repo;
-	struct apk_url_print urlp;
+	struct ps4_out *out = &ac->out;
+	struct ps4_database *db = ac->db;
+	struct ps4_repository *repo;
+	struct ps4_url_print urlp;
 	int i;
 	char buf[32] = "OK:";
 
-	if (apk_out_verbosity(out) < 1)
+	if (ps4_out_verbosity(out) < 1)
 		return db->repositories.unavailable + db->repositories.stale;
 
 	for (i = 0; i < db->num_repos; i++) {
 		repo = &db->repos[i];
 
-		if (APK_BLOB_IS_NULL(repo->description))
+		if (PS4_BLOB_IS_NULL(repo->description))
 			continue;
 
-		apk_url_parse(&urlp, db->repos[i].url);
-		apk_msg(out, BLOB_FMT " [" URL_FMT "]",
+		ps4_url_parse(&urlp, db->repos[i].url);
+		ps4_msg(out, BLOB_FMT " [" URL_FMT "]",
 			BLOB_PRINTF(repo->description),
 			URL_PRINTF(urlp));
 	}
@@ -43,18 +43,18 @@ static int update_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *a
 			 db->repositories.unavailable,
 			 db->repositories.stale);
 
-	apk_msg(out, "%s %d distinct packages available", buf,
+	ps4_msg(out, "%s %d distinct packages available", buf,
 		db->available.packages.num_items);
 
 	return db->repositories.unavailable + db->repositories.stale;
 }
 
-static struct apk_applet apk_update = {
+static struct ps4_applet ps4_update = {
 	.name = "update",
-	.open_flags = APK_OPENF_WRITE | APK_OPENF_ALLOW_ARCH,
-	.forced_force = APK_FORCE_REFRESH,
+	.open_flags = PS4_OPENF_WRITE | PS4_OPENF_ALLOW_ARCH,
+	.forced_force = PS4_FORCE_REFRESH,
 	.main = update_main,
 };
 
-APK_DEFINE_APPLET(apk_update);
+PS4_DEFINE_APPLET(ps4_update);
 

@@ -9,6 +9,8 @@
         "errno.h": "c",
         "unistd.h": "c",
         "ps4_crypto.h": "c",
-        "ps4_applet.h": "c"
+        "ps4_applet.h": "c",
+        "stdio.h": "c",
+        "limits.h": "c"
     },
 }

@@ -1,4 +1,4 @@
-/* app_info.c - Alpine Package Keeper (APK)
+/* app_info.c -  PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2009 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -10,15 +10,15 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <limits.h>
-#include "apk_defines.h"
-#include "apk_applet.h"
-#include "apk_package.h"
-#include "apk_database.h"
-#include "apk_print.h"
+#include "ps4_defines.h"
+#include "ps4_applet.h"
+#include "ps4_package.h"
+#include "ps4_database.h"
+#include "ps4_print.h"
 
 struct info_ctx {
-	struct apk_database *db;
-	void (*action)(struct info_ctx *ctx, struct apk_database *db, struct apk_string_array *args);
+	struct ps4_database *db;
+	void (*action)(struct info_ctx *ctx, struct ps4_database *db, struct ps4_string_array *args);
 	int subaction_mask;
 	int errors;
 };
@@ -27,20 +27,20 @@ static int verbosity = 0;
 
 /* These need to stay in sync with the function pointer array in
  * info_subaction() */
-#define APK_INFO_DESC		0x01
-#define APK_INFO_URL		0x02
-#define APK_INFO_SIZE		0x04
-#define APK_INFO_DEPENDS	0x08
-#define APK_INFO_PROVIDES	0x10
-#define APK_INFO_RDEPENDS	0x20
-#define APK_INFO_CONTENTS	0x40
-#define APK_INFO_TRIGGERS	0x80
-#define APK_INFO_INSTALL_IF	0x100
-#define APK_INFO_RINSTALL_IF	0x200
-#define APK_INFO_REPLACES	0x400
-#define APK_INFO_LICENSE	0x800
+#define PS4_INFO_DESC		0x01
+#define PS4_INFO_URL		0x02
+#define PS4_INFO_SIZE		0x04
+#define PS4_INFO_DEPENDS	0x08
+#define PS4_INFO_PROVIDES	0x10
+#define PS4_INFO_RDEPENDS	0x20
+#define PS4_INFO_CONTENTS	0x40
+#define PS4_INFO_TRIGGERS	0x80
+#define PS4_INFO_INSTALL_IF	0x100
+#define PS4_INFO_RINSTALL_IF	0x200
+#define PS4_INFO_REPLACES	0x400
+#define PS4_INFO_LICENSE	0x800
 
-static void verbose_print_pkg(struct apk_package *pkg, int minimal_verbosity)
+static void verbose_print_pkg(struct ps4_package *pkg, int minimal_verbosity)
 {
 	int v = min(verbosity, minimal_verbosity);
 	if (pkg == NULL || v < 1) return;
@@ -50,30 +50,30 @@ static void verbose_print_pkg(struct apk_package *pkg, int minimal_verbosity)
 	printf("\n");
 }
 
-static void info_exists(struct info_ctx *ctx, struct apk_database *db,
-			struct apk_string_array *args)
+static void info_exists(struct info_ctx *ctx, struct ps4_database *db,
+			struct ps4_string_array *args)
 {
-	struct apk_name *name;
-	struct apk_dependency dep;
-	struct apk_provider *p;
+	struct ps4_name *name;
+	struct ps4_dependency dep;
+	struct ps4_provider *p;
 	char **parg;
 	int ok;
 
 	foreach_array_item(parg, args) {
-		apk_blob_t b = APK_BLOB_STR(*parg);
+		ps4_blob_t b = PS4_BLOB_STR(*parg);
 
-		apk_blob_pull_dep(&b, db, &dep);
-		if (APK_BLOB_IS_NULL(b) || b.len > 0)
+		ps4_blob_pull_dep(&b, db, &dep);
+		if (PS4_BLOB_IS_NULL(b) || b.len > 0)
 			continue;
 
 		name = dep.name;
 		if (name == NULL)
 			continue;
 
-		ok = apk_dep_is_provided(NULL, &dep, NULL);
+		ok = ps4_dep_is_provided(NULL, &dep, NULL);
 		foreach_array_item(p, name->providers) {
 			if (!p->pkg->ipkg) continue;
-			ok = apk_dep_is_provided(NULL, &dep, p);
+			ok = ps4_dep_is_provided(NULL, &dep, p);
 			if (ok) verbose_print_pkg(p->pkg, 0);
 			break;
 		}
@@ -81,37 +81,37 @@ static void info_exists(struct info_ctx *ctx, struct apk_database *db,
 	}
 }
 
-static struct apk_package *get_owner(struct apk_database *db, apk_blob_t fn)
+static struct ps4_package *get_owner(struct ps4_database *db, ps4_blob_t fn)
 {
-	struct apk_db_dir *dir;
+	struct ps4_db_dir *dir;
 
-	apk_blob_pull_blob_match(&fn, APK_BLOB_STRLIT("/"));
+	ps4_blob_pull_blob_match(&fn, PS4_BLOB_STRLIT("/"));
 	if (fn.len && fn.ptr[fn.len-1] == '/') fn.len--;
 
-	dir = apk_db_dir_query(db, fn);
+	dir = ps4_db_dir_query(db, fn);
 	if (dir) return dir->owner->pkg;
-	return apk_db_get_file_owner(db, fn);
+	return ps4_db_get_file_owner(db, fn);
 }
 
-static void info_who_owns(struct info_ctx *ctx, struct apk_database *db,
-			  struct apk_string_array *args)
+static void info_who_owns(struct info_ctx *ctx, struct ps4_database *db,
+			  struct ps4_string_array *args)
 {
-	struct apk_out *out = &db->ctx->out;
-	struct apk_package *pkg;
-	struct apk_dependency_array *deps;
-	struct apk_dependency dep;
-	struct apk_ostream *os;
+	struct ps4_out *out = &db->ctx->out;
+	struct ps4_package *pkg;
+	struct ps4_dependency_array *deps;
+	struct ps4_dependency dep;
+	struct ps4_ostream *os;
 	const char *via;
 	char **parg, fnbuf[PATH_MAX], buf[PATH_MAX];
-	apk_blob_t fn;
+	ps4_blob_t fn;
 	ssize_t r;
 
-	apk_dependency_array_init(&deps);
+	ps4_dependency_array_init(&deps);
 	foreach_array_item(parg, args) {
 		if (*parg[0] != '/' && realpath(*parg, fnbuf))
-			fn = APK_BLOB_STR(fnbuf);
+			fn = ps4_BLOB_STR(fnbuf);
 		else
-			fn = APK_BLOB_STR(*parg);
+			fn = ps4_BLOB_STR(*parg);
 
 		via = "";
 
@@ -119,42 +119,42 @@ static void info_who_owns(struct info_ctx *ctx, struct apk_database *db,
 		if (pkg == NULL) {
 			r = readlinkat(db->root_fd, *parg, buf, sizeof(buf));
 			if (r > 0 && r < PATH_MAX && buf[0] == '/') {
-				pkg = get_owner(db, APK_BLOB_STR(buf));
+				pkg = get_owner(db, PS4_BLOB_STR(buf));
 				via = "symlink target ";
 			}
 		}
 
 		if (pkg == NULL) {
-			apk_err(out, BLOB_FMT ": Could not find owner package",
+			ps4_err(out, BLOB_FMT ": Could not find owner package",
 				BLOB_PRINTF(fn));
 			ctx->errors++;
 			continue;
 		}
 
 		if (verbosity < 1) {
-			dep = (struct apk_dependency) {
+			dep = (struct ps4_dependency) {
 				.name = pkg->name,
-				.version = &apk_atom_null,
-				.op = APK_DEPMASK_ANY,
+				.version = &ps4_atom_null,
+				.op = PS4_DEPMASK_ANY,
 			};
-			apk_deps_add(&deps, &dep);
+			ps4_deps_add(&deps, &dep);
 		} else {
 			printf(BLOB_FMT " %sis owned by " PKG_VER_FMT "\n",
 			       BLOB_PRINTF(fn), via, PKG_VER_PRINTF(pkg));
 		}
 	}
-	if (verbosity < 1 && apk_array_len(deps) != 0) {
-		os = apk_ostream_to_fd(STDOUT_FILENO);
+	if (verbosity < 1 && ps4_array_len(deps) != 0) {
+		os = ps4_ostream_to_fd(STDOUT_FILENO);
 		if (!IS_ERR(os)) {
-			apk_deps_write(db, deps, os, APK_BLOB_PTR_LEN(" ", 1));
-			apk_ostream_write(os, "\n", 1);
-			apk_ostream_close(os);
+			ps4_deps_write(db, deps, os, PS4_BLOB_PTR_LEN(" ", 1));
+			ps4_ostream_write(os, "\n", 1);
+			ps4_ostream_close(os);
 		}
 	}
-	apk_dependency_array_free(&deps);
+	ps4_dependency_array_free(&deps);
 }
 
-static void info_print_description(struct apk_database *db, struct apk_package *pkg)
+static void info_print_description(struct ps4_database *db, struct ps4_package *pkg)
 {
 	if (verbosity > 1)
 		printf("%s: " BLOB_FMT, pkg->name->name, BLOB_PRINTF(*pkg->description));
@@ -164,7 +164,7 @@ static void info_print_description(struct apk_database *db, struct apk_package *
 		       BLOB_PRINTF(*pkg->description));
 }
 
-static void info_print_url(struct apk_database *db, struct apk_package *pkg)
+static void info_print_url(struct ps4_database *db, struct ps4_package *pkg)
 {
 	if (verbosity > 1)
 		printf("%s: " BLOB_FMT, pkg->name->name, BLOB_PRINTF(*pkg->url));
@@ -174,7 +174,7 @@ static void info_print_url(struct apk_database *db, struct apk_package *pkg)
 		       BLOB_PRINTF(*pkg->url));
 }
 
-static void info_print_license(struct apk_database *db, struct apk_package *pkg)
+static void info_print_license(struct ps4_database *db, struct ps4_package *pkg)
 {
 	if (verbosity > 1)
 		printf("%s: " BLOB_FMT , pkg->name->name, BLOB_PRINTF(*pkg->license));
@@ -184,12 +184,12 @@ static void info_print_license(struct apk_database *db, struct apk_package *pkg)
 		       BLOB_PRINTF(*pkg->license));
 }
 
-static void info_print_size(struct apk_database *db, struct apk_package *pkg)
+static void info_print_size(struct ps4_database *db, struct ps4_package *pkg)
 {
 	off_t size;
 	const char *size_unit;
 
-	size_unit = apk_get_human_size(pkg->installed_size, &size);
+	size_unit = ps4_get_human_size(pkg->installed_size, &size);
 	if (verbosity > 1)
 		printf("%s: %lld %s", pkg->name->name,
 		       (long long)size, size_unit);
@@ -198,11 +198,11 @@ static void info_print_size(struct apk_database *db, struct apk_package *pkg)
 		       PKG_VER_PRINTF(pkg), (long long)size, size_unit);
 }
 
-static void info_print_dep_array(struct apk_database *db, struct apk_package *pkg,
-				 struct apk_dependency_array *deps, const char *dep_text)
+static void info_print_dep_array(struct ps4_database *db, struct ps4_package *pkg,
+				 struct ps4_dependency_array *deps, const char *dep_text)
 {
-	struct apk_dependency *d;
-	apk_blob_t separator = APK_BLOB_STR(verbosity > 1 ? " " : "\n");
+	struct ps4_dependency *d;
+	ps4_blob_t separator = PS4_BLOB_STR(verbosity > 1 ? " " : "\n");
 	char buf[256];
 
 	if (verbosity == 1)
@@ -210,50 +210,50 @@ static void info_print_dep_array(struct apk_database *db, struct apk_package *pk
 	if (verbosity > 1)
 		printf("%s: ", pkg->name->name);
 	foreach_array_item(d, deps) {
-		apk_blob_t b = APK_BLOB_BUF(buf);
-		apk_blob_push_dep(&b, db, d);
-		apk_blob_push_blob(&b, separator);
-		b = apk_blob_pushed(APK_BLOB_BUF(buf), b);
+		ps4_blob_t b = PS4_BLOB_BUF(buf);
+		ps4_blob_push_dep(&b, db, d);
+		ps4_blob_push_blob(&b, separator);
+		b = ps4_blob_pushed(PS4_BLOB_BUF(buf), b);
 		fwrite(b.ptr, b.len, 1, stdout);
 	}
 }
 
-static void info_print_depends(struct apk_database *db, struct apk_package *pkg)
+static void info_print_depends(struct ps4_database *db, struct ps4_package *pkg)
 {
 	info_print_dep_array(db, pkg, pkg->depends, "depends on");
 }
 
-static void info_print_provides(struct apk_database *db, struct apk_package *pkg)
+static void info_print_provides(struct ps4_database *db, struct ps4_package *pkg)
 {
 	info_print_dep_array(db, pkg, pkg->provides, "provides");
 }
 
-static void print_rdep_pkg(struct apk_package *pkg0, struct apk_dependency *dep0, struct apk_package *pkg, void *pctx)
+static void print_rdep_pkg(struct ps4_package *pkg0, struct ps4_dependency *dep0, struct ps4_package *pkg, void *pctx)
 {
 	printf(PKG_VER_FMT "%s", PKG_VER_PRINTF(pkg0), verbosity > 1 ? " " : "\n");
 }
 
-static void info_print_required_by(struct apk_database *db, struct apk_package *pkg)
+static void info_print_required_by(struct ps4_database *db, struct ps4_package *pkg)
 {
 	if (verbosity == 1)
 		printf(PKG_VER_FMT " is required by:\n", PKG_VER_PRINTF(pkg));
 	if (verbosity > 1)
 		printf("%s: ", pkg->name->name);
-	apk_pkg_foreach_reverse_dependency(
+	ps4_pkg_foreach_reverse_dependency(
 		pkg,
-		APK_FOREACH_INSTALLED | APK_DEP_SATISFIES | apk_foreach_genid(),
+		PS4_FOREACH_INSTALLED | PS4_DEP_SATISFIES | ps4_foreach_genid(),
 		print_rdep_pkg, NULL);
 }
 
-static void info_print_install_if(struct apk_database *db, struct apk_package *pkg)
+static void info_print_install_if(struct ps4_database *db, struct ps4_package *pkg)
 {
 	info_print_dep_array(db, pkg, pkg->install_if, "has auto-install rule");
 }
 
-static void info_print_rinstall_if(struct apk_database *db, struct apk_package *pkg)
+static void info_print_rinstall_if(struct ps4_database *db, struct ps4_package *pkg)
 {
-	struct apk_name **name0;
-	struct apk_dependency *dep;
+	struct ps4_name **name0;
+	struct ps4_dependency *dep;
 	char *separator = verbosity > 1 ? " " : "\n";
 
 	if (verbosity == 1)
@@ -265,7 +265,7 @@ static void info_print_rinstall_if(struct apk_database *db, struct apk_package *
 	foreach_array_item(name0, pkg->name->rinstall_if) {
 		/* Check only the package that is installed, and that
 		 * it actually has this package in install_if. */
-		struct apk_package *pkg0 = apk_pkg_get_installed(*name0);
+		struct ps4_package *pkg0 = ps4_pkg_get_installed(*name0);
 		if (pkg0 == NULL) continue;
 		foreach_array_item(dep, pkg0->install_if) {
 			if (dep->name != pkg->name) continue;
@@ -277,11 +277,11 @@ static void info_print_rinstall_if(struct apk_database *db, struct apk_package *
 	}
 }
 
-static void info_print_contents(struct apk_database *db, struct apk_package *pkg)
+static void info_print_contents(struct ps4_database *db, struct ps4_package *pkg)
 {
-	struct apk_installed_package *ipkg = pkg->ipkg;
-	struct apk_db_dir_instance *diri;
-	struct apk_db_file *file;
+	struct ps4_installed_package *ipkg = pkg->ipkg;
+	struct ps4_db_dir_instance *diri;
+	struct ps4_db_file *file;
 	struct hlist_node *dc, *dn, *fc, *fn;
 
 	if (verbosity == 1)
@@ -299,9 +299,9 @@ static void info_print_contents(struct apk_database *db, struct apk_package *pkg
 	}
 }
 
-static void info_print_triggers(struct apk_database *db, struct apk_package *pkg)
+static void info_print_triggers(struct ps4_database *db, struct ps4_package *pkg)
 {
-	struct apk_installed_package *ipkg = pkg->ipkg;
+	struct ps4_installed_package *ipkg = pkg->ipkg;
 	char **trigger;
 
 	if (verbosity == 1)
@@ -315,14 +315,14 @@ static void info_print_triggers(struct apk_database *db, struct apk_package *pkg
 	}
 }
 
-static void info_print_replaces(struct apk_database *db, struct apk_package *pkg)
+static void info_print_replaces(struct ps4_database *db, struct ps4_package *pkg)
 {
 	info_print_dep_array(db, pkg, pkg->ipkg->replaces, "replaces");
 }
 
-static void info_subaction(struct info_ctx *ctx, struct apk_package *pkg)
+static void info_subaction(struct info_ctx *ctx, struct ps4_package *pkg)
 {
-	typedef void (*subaction_t)(struct apk_database *, struct apk_package *);
+	typedef void (*subaction_t)(struct ps4_database *, struct ps4_package *);
 	static subaction_t subactions[] = {
 		info_print_description,
 		info_print_url,
@@ -338,8 +338,8 @@ static void info_subaction(struct info_ctx *ctx, struct apk_package *pkg)
 		info_print_license,
 	};
 	const int requireipkg =
-		APK_INFO_CONTENTS | APK_INFO_TRIGGERS | APK_INFO_RDEPENDS |
-		APK_INFO_RINSTALL_IF | APK_INFO_REPLACES;
+		PS4_INFO_CONTENTS | PS4_INFO_TRIGGERS | PS4_INFO_RDEPENDS |
+		PS4_INFO_RINSTALL_IF | PS4_INFO_REPLACES;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(subactions); i++) {
@@ -354,7 +354,7 @@ static void info_subaction(struct info_ctx *ctx, struct apk_package *pkg)
 	}
 }
 
-static int print_name_info(struct apk_database *db, const char *match, struct apk_package *pkg, void *pctx)
+static int print_name_info(struct ps4_database *db, const char *match, struct ps4_package *pkg, void *pctx)
 {
 	struct info_ctx *ctx = (struct info_ctx *) pctx;
 
@@ -368,25 +368,25 @@ static int print_name_info(struct apk_database *db, const char *match, struct ap
 }
 
 #define INFO_OPTIONS(OPT) \
-	OPT(OPT_INFO_all,		APK_OPT_SH("a") "all") \
-	OPT(OPT_INFO_contents,		APK_OPT_SH("L") "contents") \
-	OPT(OPT_INFO_depends,		APK_OPT_SH("R") "depends") \
-	OPT(OPT_INFO_description,	APK_OPT_SH("d") "description") \
+	OPT(OPT_INFO_all,		PS4_OPT_SH("a") "all") \
+	OPT(OPT_INFO_contents,		PS4_OPT_SH("L") "contents") \
+	OPT(OPT_INFO_depends,		PS4_OPT_SH("R") "depends") \
+	OPT(OPT_INFO_description,	PS4_OPT_SH("d") "description") \
 	OPT(OPT_INFO_install_if,	"install-if") \
-	OPT(OPT_INFO_installed,		APK_OPT_SH("e") "installed") \
+	OPT(OPT_INFO_installed,		PS4_OPT_SH("e") "installed") \
 	OPT(OPT_INFO_license,		"license") \
-	OPT(OPT_INFO_provides,		APK_OPT_SH("P") "provides") \
-	OPT(OPT_INFO_rdepends,		APK_OPT_SH("r") "rdepends") \
+	OPT(OPT_INFO_provides,		PS4_OPT_SH("P") "provides") \
+	OPT(OPT_INFO_rdepends,		PS4_OPT_SH("r") "rdepends") \
 	OPT(OPT_INFO_replaces,		"replaces") \
 	OPT(OPT_INFO_rinstall_if,	"rinstall-if") \
-	OPT(OPT_INFO_size,		APK_OPT_SH("s") "size") \
-	OPT(OPT_INFO_triggers,		APK_OPT_SH("t") "triggers") \
-	OPT(OPT_INFO_webpage,		APK_OPT_SH("w") "webpage") \
-	OPT(OPT_INFO_who_owns,		APK_OPT_SH("W") "who-owns")
+	OPT(OPT_INFO_size,		PS4_OPT_SH("s") "size") \
+	OPT(OPT_INFO_triggers,		PS4_OPT_SH("t") "triggers") \
+	OPT(OPT_INFO_webpage,		PS4_OPT_SH("w") "webpage") \
+	OPT(OPT_INFO_who_owns,		PS4_OPT_SH("W") "who-owns")
 
-APK_OPT_APPLET(option_desc, INFO_OPTIONS);
+PS4_OPT_APPLET(option_desc, INFO_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int option_parse_applet(void *pctx, struct ps4_ctx *ac, int opt, const char *optarg)
 {
 	struct info_ctx *ctx = (struct info_ctx *) pctx;
 
@@ -394,47 +394,47 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 	switch (opt) {
 	case OPT_INFO_installed:
 		ctx->action = info_exists;
-		ac->open_flags |= APK_OPENF_NO_REPOS;
+		ac->open_flags |= PS4_OPENF_NO_REPOS;
 		break;
 	case OPT_INFO_who_owns:
 		ctx->action = info_who_owns;
-		ac->open_flags |= APK_OPENF_NO_REPOS;
+		ac->open_flags |= PS4_OPENF_NO_REPOS;
 		break;
 	case OPT_INFO_webpage:
-		ctx->subaction_mask |= APK_INFO_URL;
+		ctx->subaction_mask |= PS4_INFO_URL;
 		break;
 	case OPT_INFO_depends:
-		ctx->subaction_mask |= APK_INFO_DEPENDS;
+		ctx->subaction_mask |= PS4_INFO_DEPENDS;
 		break;
 	case OPT_INFO_provides:
-		ctx->subaction_mask |= APK_INFO_PROVIDES;
+		ctx->subaction_mask |= PS4_INFO_PROVIDES;
 		break;
 	case OPT_INFO_rdepends:
-		ctx->subaction_mask |= APK_INFO_RDEPENDS;
+		ctx->subaction_mask |= PS4_INFO_RDEPENDS;
 		break;
 	case OPT_INFO_install_if:
-		ctx->subaction_mask |= APK_INFO_INSTALL_IF;
+		ctx->subaction_mask |= PS4_INFO_INSTALL_IF;
 		break;
 	case OPT_INFO_rinstall_if:
-		ctx->subaction_mask |= APK_INFO_RINSTALL_IF;
+		ctx->subaction_mask |= PS4_INFO_RINSTALL_IF;
 		break;
 	case OPT_INFO_size:
-		ctx->subaction_mask |= APK_INFO_SIZE;
+		ctx->subaction_mask |= PS4_INFO_SIZE;
 		break;
 	case OPT_INFO_description:
-		ctx->subaction_mask |= APK_INFO_DESC;
+		ctx->subaction_mask |= PS4_INFO_DESC;
 		break;
 	case OPT_INFO_contents:
-		ctx->subaction_mask |= APK_INFO_CONTENTS;
+		ctx->subaction_mask |= PS4_INFO_CONTENTS;
 		break;
 	case OPT_INFO_triggers:
-		ctx->subaction_mask |= APK_INFO_TRIGGERS;
+		ctx->subaction_mask |= PS4_INFO_TRIGGERS;
 		break;
 	case OPT_INFO_replaces:
-		ctx->subaction_mask |= APK_INFO_REPLACES;
+		ctx->subaction_mask |= PS4_INFO_REPLACES;
 		break;
 	case OPT_INFO_license:
-		ctx->subaction_mask |= APK_INFO_LICENSE;
+		ctx->subaction_mask |= PS4_INFO_LICENSE;
 		break;
 	case OPT_INFO_all:
 		ctx->subaction_mask = 0xffffffff;
@@ -445,25 +445,25 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int opt, const ch
 	return 0;
 }
 
-static int info_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int info_main(void *ctx, struct ps4_ctx *ac, struct ps4_string_array *args)
 {
-	struct apk_out *out = &ac->out;
-	struct apk_database *db = ac->db;
+	struct ps4_out *out = &ac->out;
+	struct ps4_database *db = ac->db;
 	struct info_ctx *ictx = (struct info_ctx *) ctx;
 
-	verbosity = apk_out_verbosity(out);
+	verbosity = ps4_out_verbosity(out);
 	ictx->db = db;
 	if (ictx->subaction_mask == 0)
-		ictx->subaction_mask = APK_INFO_DESC | APK_INFO_URL | APK_INFO_SIZE;
+		ictx->subaction_mask = PS4_INFO_DESC | PS4_INFO_URL | PS4_INFO_SIZE;
 	if (ictx->action != NULL) {
 		ictx->action(ictx, db, args);
-	} else if (apk_array_len(args) > 0) {
+	} else if (ps4_array_len(args) > 0) {
 		/* Print info on given packages */
-		apk_db_foreach_sorted_providers(db, args, print_name_info, ctx);
+		ps4_db_foreach_sorted_providers(db, args, print_name_info, ctx);
 	} else {
 		/* Print all installed packages */
-		struct apk_package_array *pkgs = apk_db_sorted_installed_packages(db);
-		struct apk_package **ppkg;
+		struct ps4_package_array *pkgs = ps4_db_sorted_installed_packages(db);
+		struct ps4_package **ppkg;
 		foreach_array_item(ppkg, pkgs)
 			verbose_print_pkg(*ppkg, 1);
 	}
@@ -471,18 +471,18 @@ static int info_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *arg
 	return ictx->errors;
 }
 
-static const struct apk_option_group optgroup_applet = {
+static const struct ps4_option_group optgroup_applet = {
 	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 
-static struct apk_applet apk_info = {
+static struct ps4_applet ps4_info = {
 	.name = "info",
-	.open_flags = APK_OPENF_READ | APK_OPENF_ALLOW_ARCH,
+	.open_flags = PS4_OPENF_READ | PS4_OPENF_ALLOW_ARCH,
 	.context_size = sizeof(struct info_ctx),
 	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
 	.main = info_main,
 };
 
-APK_DEFINE_APPLET(apk_info);
+PS4_DEFINE_APPLET(ps4_info);
 
