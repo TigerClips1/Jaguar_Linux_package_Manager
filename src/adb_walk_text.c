@@ -9,37 +9,37 @@
 #define dbg_printf(args...)
 #endif
 
-int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
+int adb_walk_text(struct adb_walk *d, struct ps4_istream *is)
 {
-	const apk_blob_t token = APK_BLOB_STR("\n");
-	const apk_blob_t comment = APK_BLOB_STR(" #");
-	const apk_blob_t key_sep = APK_BLOB_STR(": ");
+	const ps4_blob_t token = PS4_BLOB_STR("\n");
+	const ps4_blob_t comment = PS4_BLOB_STR(" #");
+	const ps4_blob_t key_sep = PS4_BLOB_STR(": ");
 	char mblockdata[1024*4];
-	apk_blob_t l, comm, mblock = APK_BLOB_BUF(mblockdata);
+	ps4_blob_t l, comm, mblock = PS4_BLOB_BUF(mblockdata);
 	int r = 0, i, multi_line = 0, nesting = 0, new_item = 0;
 	uint8_t started[64] = {0};
 
 	if (IS_ERR(is)) return PTR_ERR(is);
-	if (apk_istream_get_delim(is, token, &l) != 0) goto err;
-	if (!apk_blob_pull_blob_match(&l, APK_BLOB_STR("#%SCHEMA: "))) goto err;
-	if ((r = d->ops->schema(d, apk_blob_pull_uint(&l, 16))) != 0) goto err;
+	if (ps4_istream_get_delim(is, token, &l) != 0) goto err;
+	if (!ps4_blob_pull_blob_match(&l, PS4_BLOB_STR("#%SCHEMA: "))) goto err;
+	if ((r = d->ops->schema(d, ps4_blob_pull_uint(&l, 16))) != 0) goto err;
 
 	started[0] = 1;
-	while (apk_istream_get_delim(is, token, &l) == 0) {
+	while (ps4_istream_get_delim(is, token, &l) == 0) {
 		for (i = 0; l.len >= 2 && l.ptr[0] == ' ' && l.ptr[1] == ' '; i++, l.ptr += 2, l.len -= 2)
 			if (multi_line && i >= multi_line) break;
 
 		for (; nesting > i; nesting--) {
 			if (multi_line) {
-				apk_blob_t data = apk_blob_pushed(APK_BLOB_BUF(mblockdata), mblock);
-				if (APK_BLOB_IS_NULL(data)) {
+				ps4_blob_t data = ps4_blob_pushed(PS4_BLOB_BUF(mblockdata), mblock);
+				if (PS4_BLOB_IS_NULL(data)) {
 					r = -E2BIG;
 					goto err;
 				}
 				if (data.len && data.ptr[data.len-1] == '\n') data.len--;
 				dbg_printf("Multiline-Scalar >%d> "BLOB_FMT"\n", nesting, BLOB_PRINTF(data));
 				if ((r = d->ops->scalar(d, data, 1)) != 0) goto err;
-				mblock = APK_BLOB_BUF(mblockdata);
+				mblock = PS4_BLOB_BUF(mblockdata);
 				multi_line = 0;
 			}
 			if (started[nesting]) {
@@ -60,8 +60,8 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 
 		if (multi_line) {
 			dbg_printf("Scalar-Block:>%d> "BLOB_FMT"\n", nesting, BLOB_PRINTF(l));
-			apk_blob_push_blob(&mblock, l);
-			apk_blob_push_blob(&mblock, APK_BLOB_STR("\n"));
+			ps4_blob_push_blob(&mblock, l);
+			ps4_blob_push_blob(&mblock, PS4_BLOB_STR("\n"));
 			new_item = 0;
 			continue;
 		}
@@ -72,18 +72,18 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 		}
 
 		// contains ' #' -> comment
-		if (!apk_blob_split(l, comment, &l, &comm))
+		if (!ps4_blob_split(l, comment, &l, &comm))
 			comm.len = 0;
 
 		if (l.len) {
-			apk_blob_t key = APK_BLOB_NULL, scalar = APK_BLOB_NULL;
+			ps4_blob_t key = PS4_BLOB_NULL, scalar = PS4_BLOB_NULL;
 			int start = 0;
 
-			if (apk_blob_split(l, key_sep, &key, &scalar)) {
+			if (ps4_blob_split(l, key_sep, &key, &scalar)) {
 				// contains ': ' -> key + scalar
 			} else if (l.ptr[l.len-1] == ':') {
 				// ends ':' -> key + indented object/array
-				key = APK_BLOB_PTR_LEN(l.ptr, l.len-1);
+				key = PS4_BLOB_PTR_LEN(l.ptr, l.len-1);
 				start = 1;
 			} else {
 				scalar = l;
@@ -126,5 +126,5 @@ int adb_walk_text(struct adb_walk *d, struct apk_istream *is)
 	d->ops->end(d);
 
 err:
-	return apk_istream_close_error(is, r);
+	return ps4_istream_close_error(is, r);
 }

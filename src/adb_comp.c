@@ -1,4 +1,4 @@
-/* adb_comp.c - Alpine Package Keeper (APK)
+/* adb_comp.c - PS4linux package manager (PS4)
  *
  * Copyright (C) 2021 Timo Teräs <timo.teras@iki.fi>
  * All rights reserved.
@@ -6,14 +6,14 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#include "apk_defines.h"
+#include "ps4_defines.h"
 #include "adb.h"
 
 struct compression_info {
 	const char *name;
 	uint8_t min_level, max_level;
-	struct apk_ostream *(*compress)(struct apk_ostream *, uint8_t);
-	struct apk_istream *(*decompress)(struct apk_istream *);
+	struct ps4_ostream *(*compress)(struct ps4_ostream *, uint8_t);
+	struct ps4_istream *(*decompress)(struct ps4_istream *);
 };
 
 static const struct compression_info compression_infos[] = {
@@ -22,15 +22,15 @@ static const struct compression_info compression_infos[] = {
 	},
 	[ADB_COMP_DEFLATE] = {
 		.name = "deflate",
-		.compress = apk_ostream_deflate,
-		.decompress = apk_istream_deflate,
+		.compress = ps4_ostream_deflate,
+		.decompress = ps4_istream_deflate,
 		.min_level = 0, .max_level = 9,
 	},
 #ifdef HAVE_ZSTD
 	[ADB_COMP_ZSTD] = {
 		.name = "zstd",
-		.compress = apk_ostream_zstd,
-		.decompress = apk_istream_zstd,
+		.compress = ps4_ostream_zstd,
+		.decompress = ps4_istream_zstd,
 		.min_level = 0, .max_level = 22,
 	},
 #endif
@@ -76,30 +76,30 @@ int adb_parse_compression(const char *spec_string, struct adb_compression_spec *
 	return 0;
 err:
 	*spec = (struct adb_compression_spec) { .alg = ADB_COMP_NONE };
-	return -APKE_ADB_COMPRESSION;
+	return -PS4E_ADB_COMPRESSION;
 }
 
-struct apk_istream *adb_decompress(struct apk_istream *is, struct adb_compression_spec *retspec)
+struct ps4_istream *adb_decompress(struct ps4_istream *is, struct adb_compression_spec *retspec)
 {
 	struct adb_compression_spec spec = { .alg = ADB_COMP_NONE };
 
 	if (IS_ERR(is)) return is;
 
-	uint8_t *buf = apk_istream_peek(is, 4);
-	if (IS_ERR(buf)) return ERR_PTR(apk_istream_close_error(is, PTR_ERR(buf)));
-	if (memcmp(buf, "ADB", 3) != 0) return ERR_PTR(apk_istream_close_error(is, -APKE_ADB_HEADER));
+	uint8_t *buf = ps4_istream_peek(is, 4);
+	if (IS_ERR(buf)) return ERR_PTR(ps4_istream_close_error(is, PTR_ERR(buf)));
+	if (memcmp(buf, "ADB", 3) != 0) return ERR_PTR(ps4_istream_close_error(is, -PS4E_ADB_HEADER));
 	switch (buf[3]) {
 	case '.':
 		spec.alg = ADB_COMP_NONE;
 		spec.level = 1;
 		break;
 	case 'd':
-		apk_istream_get(is, 4);
+		ps4_istream_get(is, 4);
 		spec.alg = ADB_COMP_DEFLATE;
 		break;
 	case 'c':
-		apk_istream_get(is, 4);
-		apk_istream_read(is, &spec, sizeof spec);
+		ps4_istream_get(is, 4);
+		ps4_istream_read(is, &spec, sizeof spec);
 		break;
 	default:
 		goto err;
@@ -115,10 +115,10 @@ struct apk_istream *adb_decompress(struct apk_istream *is, struct adb_compressio
 
 	return is;
 err:
-	return ERR_PTR(apk_istream_close_error(is, -APKE_ADB_COMPRESSION));
+	return ERR_PTR(ps4_istream_close_error(is, -PS4E_ADB_COMPRESSION));
 }
 
-struct apk_ostream *adb_compress(struct apk_ostream *os, struct adb_compression_spec *spec)
+struct ps4_ostream *adb_compress(struct ps4_ostream *os, struct adb_compression_spec *spec)
 {
 	const struct compression_info *ci;
 
@@ -134,19 +134,19 @@ struct apk_ostream *adb_compress(struct apk_ostream *os, struct adb_compression_
 		return os;
 	case ADB_COMP_DEFLATE:
 		if (spec->level != 0) break;
-		if (apk_ostream_write(os, "ADBd", 4) < 0) goto err;
-		return apk_ostream_deflate(os, 0);
+		if (ps4_ostream_write(os, "ADBd", 4) < 0) goto err;
+		return ps4_ostream_deflate(os, 0);
 	}
 
 	ci = compression_info_by_alg(spec->alg);
 	if (!ci) goto err;
 	if (spec->level < ci->min_level || spec->level > ci->max_level) goto err;
 
-	if (apk_ostream_write(os, "ADBc", 4) < 0) goto err;
-	if (apk_ostream_write(os, spec, sizeof *spec) < 0) goto err;
+	if (ps4_ostream_write(os, "ADBc", 4) < 0) goto err;
+	if (ps4_ostream_write(os, spec, sizeof *spec) < 0) goto err;
 	return ci->compress(os, spec->level);
 
 err:
-	apk_ostream_cancel(os, -APKE_ADB_COMPRESSION);
-	return ERR_PTR(apk_ostream_close(os));
+	ps4_ostream_cancel(os, -PS4E_ADB_COMPRESSION);
+	return ERR_PTR(ps4_ostream_close(os));
 }

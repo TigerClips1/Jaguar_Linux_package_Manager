@@ -1,3 +1,4 @@
+//TODO rename all of these APKE verables and APK verables to PS4 as define in the ps4_blob.h etc
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,9 +8,9 @@
 #include <sys/uio.h>
 
 #include "adb.h"
-#include "apk_blob.h"
-#include "apk_trust.h"
-#include "apk_extract.h"
+#include "ps4_blob.h"
+#include "ps4_trust.h"
+#include "ps4_extract.h"
 
 static char padding_zeroes[ADB_BLOCK_ALIGNMENT] = {0};
 

@@ -1,5 +1,5 @@
 #include "adb.h"
-#include "apk_print.h"
+#include "ps4_print.h"
 
 static void adb_walk_gentext_indent(struct adb_walk_gentext *dt)
 {
@@ -32,7 +32,7 @@ static int adb_walk_gentext_schema(struct adb_walk *d, uint32_t schema_id)
 	return 0;
 }
 
-static int adb_walk_gentext_comment(struct adb_walk *d, apk_blob_t comment)
+static int adb_walk_gentext_comment(struct adb_walk *d, ps4_blob_t comment)
 {
 	struct adb_walk_gentext *dt = container_of(d, struct adb_walk_gentext, d);
 	FILE *out = dt->out;
@@ -77,12 +77,12 @@ static int adb_walk_gentext_end(struct adb_walk *d)
 	return 0;
 }
 
-static int adb_walk_gentext_key(struct adb_walk *d, apk_blob_t key)
+static int adb_walk_gentext_key(struct adb_walk *d, ps4_blob_t key)
 {
 	struct adb_walk_gentext *dt = container_of(d, struct adb_walk_gentext, d);
 	FILE *out = dt->out;
 
-	if (!APK_BLOB_IS_NULL(key)) {
+	if (!PS4_BLOB_IS_NULL(key)) {
 		if (dt->key_printed) {
 			fprintf(out, "\n");
 			adb_walk_gentext_newline(dt);
@@ -97,23 +97,23 @@ static int adb_walk_gentext_key(struct adb_walk *d, apk_blob_t key)
 	return 0;
 }
 
-static int adb_walk_gentext_scalar(struct adb_walk *d, apk_blob_t scalar, int multiline)
+static int adb_walk_gentext_scalar(struct adb_walk *d, ps4_blob_t scalar, int multiline)
 {
 	struct adb_walk_gentext *dt = container_of(d, struct adb_walk_gentext, d);
 	FILE *out = dt->out;
-	apk_blob_t nl = APK_BLOB_STR("\n");
+	ps4_blob_t nl = PS4_BLOB_STR("\n");
 
 	adb_walk_gentext_indent(dt);
 
 	if (scalar.len >= 60 || multiline) {
 		/* long or multiline */
-		apk_blob_t l;
+		ps4_blob_t l;
 
 		fprintf(out, "|\n");
 		adb_walk_gentext_newline(dt);
 
 		dt->nest++;
-		while (apk_blob_split(scalar, nl, &l, &scalar)) {
+		while (ps4_blob_split(scalar, nl, &l, &scalar)) {
 			adb_walk_gentext_indent(dt);
 			fprintf(out, BLOB_FMT"\n", BLOB_PRINTF(l));
 			adb_walk_gentext_newline(dt);
