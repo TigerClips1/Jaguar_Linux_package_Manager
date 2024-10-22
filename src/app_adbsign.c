@@ -3,15 +3,15 @@
 #include <unistd.h>
 
 #include "adb.h"
-#include "apk_applet.h"
-#include "apk_print.h"
+#include "ps4_applet.h"
+#include "ps4_print.h"
 
 struct sign_ctx {
-	struct apk_ctx *ac;
+	struct ps4_ctx *ac;
 
 	struct adb db;
-	struct apk_istream *is;
-	struct apk_ostream *os;
+	struct ps4_istream *is;
+	struct ps4_ostream *os;
 	struct adb_verify_ctx vfy;
 
 	unsigned int reset_signatures : 1;
@@ -21,9 +21,9 @@ struct sign_ctx {
 #define ADBSIGN_OPTIONS(OPT) \
 	OPT(OPT_ADBSIGN_reset_signatures,	"reset-signatures")
 
-APK_OPT_APPLET(option_desc, ADBSIGN_OPTIONS);
+PS4_OPT_APPLET(option_desc, ADBSIGN_OPTIONS);
 
-static int option_parse_applet(void *pctx, struct apk_ctx *ac, int optch, const char *optarg)
+static int option_parse_applet(void *pctx, struct ps4_ctx *ac, int optch, const char *optarg)
 {
 	struct sign_ctx *ctx = (struct sign_ctx *) pctx;
 
@@ -37,7 +37,7 @@ static int option_parse_applet(void *pctx, struct apk_ctx *ac, int optch, const 
 	return 0;
 }
 
-static const struct apk_option_group optgroup_applet = {
+static const struct ps4_option_group optgroup_applet = {
 	.desc = option_desc,
 	.parse = option_parse_applet,
 };
@@ -48,12 +48,12 @@ static int process_signatures(struct sign_ctx *ctx)
 
 	if (ctx->signatures_written) return 0;
 	ctx->signatures_written = 1;
-	r = adb_trust_write_signatures(apk_ctx_get_trust(ctx->ac), &ctx->db, &ctx->vfy, ctx->os);
-	if (r < 0) apk_ostream_cancel(ctx->os, r);
+	r = adb_trust_write_signatures(ps4_ctx_get_trust(ctx->ac), &ctx->db, &ctx->vfy, ctx->os);
+	if (r < 0) ps4_ostream_cancel(ctx->os, r);
 	return r;
 }
 
-static int process_block(struct adb *db, struct adb_block *blk, struct apk_istream *is)
+static int process_block(struct adb *db, struct adb_block *blk, struct ps4_istream *is)
 {
 	struct sign_ctx *ctx = container_of(db, struct sign_ctx, db);
 	int r;
@@ -74,12 +74,12 @@ static int process_block(struct adb *db, struct adb_block *blk, struct apk_istre
 	return 0;
 }
 
-static int adbsign_resign(struct sign_ctx *ctx, struct apk_istream *is, struct apk_ostream *os)
+static int adbsign_resign(struct sign_ctx *ctx, struct ps4_istream *is, struct ps4_ostream *os)
 {
 	int r;
 
 	if (IS_ERR(os)) {
-		apk_istream_close(is);
+		ps4_istream_close(is);
 		return PTR_ERR(os);
 	}
 	ctx->os = os;
@@ -87,12 +87,12 @@ static int adbsign_resign(struct sign_ctx *ctx, struct apk_istream *is, struct a
 	r = adb_m_process(&ctx->db, is, 0, &ctx->ac->trust, NULL, process_block);
 	if (r == 0) r = process_signatures(ctx);
 	adb_free(&ctx->db);
-	return apk_ostream_close_error(os, r);
+	return ps4_ostream_close_error(os, r);
 }
 
-static int adbsign_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int adbsign_main(void *pctx, struct ps4_ctx *ac, struct ps4_string_array *args)
 {
-	struct apk_out *out = &ac->out;
+	struct ps4_out *out = &ac->out;
 	struct sign_ctx *ctx = pctx;
 	struct adb_compression_spec spec;
 	char **arg;
@@ -100,21 +100,21 @@ static int adbsign_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 
 	ctx->ac = ac;
 	foreach_array_item(arg, args) {
-		struct apk_istream *is = adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, *arg), &spec);
+		struct ps4_istream *is = adb_decompress(ps4_istream_from_file_mmap(AT_FDCWD, *arg), &spec);
 		if (ac->compspec.alg && ac->compspec.level) spec = ac->compspec;
-		struct apk_ostream *os = adb_compress(apk_ostream_to_file(AT_FDCWD, *arg, 0644), &spec);
+		struct ps4_ostream *os = adb_compress(ps4_ostream_to_file(AT_FDCWD, *arg, 0644), &spec);
 		r = adbsign_resign(ctx, is, os);
-		if (r) apk_err(out, "%s: %s", *arg, apk_error_str(r));
+		if (r) ps4_err(out, "%s: %s", *arg, ps4_error_str(r));
 	}
 
 	return 0;
 }
 
-static struct apk_applet apk_adbsign = {
+static struct ps4_applet ps4_adbsign = {
 	.name = "adbsign",
 	.context_size = sizeof(struct sign_ctx),
 	.optgroups = { &optgroup_global, &optgroup_generation, &optgroup_applet },
 	.main = adbsign_main,
 };
 
-APK_DEFINE_APPLET(apk_adbsign);
+PS4_DEFINE_APPLET(ps4_adbsign);

@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <unistd.h>
-#include "apk_adb.h"
-#include "apk_applet.h"
-#include "apk_print.h"
+#include "ps4_adb.h"
+#include "ps4_applet.h"
+#include "ps4_print.h"
 
 static const struct adb_db_schema dbschemas[] = {
 	{ .magic = ADB_SCHEMA_INDEX,		.root = &schema_index, },
@@ -11,9 +11,9 @@ static const struct adb_db_schema dbschemas[] = {
 	{},
 };
 
-static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int adbdump_main(void *pctx, struct ps4_ctx *ac, struct ps4_string_array *args)
 {
-	struct apk_out *out = &ac->out;
+	struct ps4_out *out = &ac->out;
 	char **arg;
 	int r;
 
@@ -25,10 +25,10 @@ static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 		};
 
 		r = adb_walk_adb(&td.d,
-			adb_decompress(apk_istream_from_file_mmap(AT_FDCWD, *arg), 0),
-			apk_ctx_get_trust(ac));
+			adb_decompress(ps4_istream_from_file_mmap(AT_FDCWD, *arg), 0),
+			ps4_ctx_get_trust(ac));
 		if (r) {
-			apk_err(out, "%s: %s", *arg, apk_error_str(r));
+			ps4_err(out, "%s: %s", *arg, ps4_error_str(r));
 			return r;
 		}
 	}
@@ -36,16 +36,16 @@ static int adbdump_main(void *pctx, struct apk_ctx *ac, struct apk_string_array 
 	return 0;
 }
 
-static struct apk_applet apk_adbdump = {
+static struct ps4_applet ps4_adbdump = {
 	.name = "adbdump",
 	.main = adbdump_main,
 };
-APK_DEFINE_APPLET(apk_adbdump);
+ps4_DEFINE_APPLET(ps4_adbdump);
 
 
-static int adbgen_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int adbgen_main(void *pctx, struct ps4_ctx *ac, struct ps4_string_array *args)
 {
-	struct apk_out *out = &ac->out;
+	struct ps4_out *out = &ac->out;
 	char **arg;
 	int r;
 	struct adb_walk_genadb genadb = {
@@ -58,16 +58,16 @@ static int adbgen_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 	foreach_array_item(arg, args) {
 		adb_reset(&genadb.db);
 		adb_reset(&genadb.idb[0]);
-		r = adb_walk_text(&genadb.d, apk_istream_from_file(AT_FDCWD, *arg));
+		r = adb_walk_text(&genadb.d, ps4_istream_from_file(AT_FDCWD, *arg));
 		if (!r) {
 			adb_w_root(&genadb.db, genadb.stored_object);
-			r = adb_c_create(apk_ostream_to_fd(STDOUT_FILENO), &genadb.db,
-				apk_ctx_get_trust(ac));
+			r = adb_c_create(ps4_ostream_to_fd(STDOUT_FILENO), &genadb.db,
+				ps4_ctx_get_trust(ac));
 		}
 		adb_free(&genadb.db);
 		adb_free(&genadb.idb[0]);
 		if (r) {
-			apk_err(out, "%s: %s", *arg, apk_error_str(r));
+			ps4_err(out, "%s: %s", *arg, ps4_error_str(r));
 			return r;
 		}
 	}
@@ -75,9 +75,9 @@ static int adbgen_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *
 	return 0;
 }
 
-static struct apk_applet apk_adbgen = {
+static struct ps4_applet ps4_adbgen = {
 	.name = "adbgen",
 	.main = adbgen_main,
 };
-APK_DEFINE_APPLET(apk_adbgen);
+PS4_DEFINE_APPLET(ps4_adbgen);
 

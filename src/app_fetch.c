@@ -14,11 +14,11 @@
 #include <errno.h>
 #include <zlib.h>
 
-#include "apk_applet.h"
-#include "apk_database.h"
-#include "apk_io.h"
-#include "apk_print.h"
-#include "apk_solver.h"
+#include "ps4_applet.h"
+#include "ps4_database.h"
+#include "ps4_io.h"
+#include "ps4_print.h"
+#include "ps4_solver.h"
 
 #define FETCH_RECURSIVE		0x01
 #define FETCH_STDOUT		0x02
@@ -30,10 +30,10 @@ struct fetch_ctx {
 	unsigned int flags;
 	int outdir_fd, errors;
 	time_t built_after;
-	struct apk_database *db;
-	struct apk_progress prog;
+	struct ps4_database *db;
+	struct ps4_progress prog;
 	size_t done, total;
-	struct apk_dependency_array *world;
+	struct ps4_dependency_array *world;
 };
 
 static int cup(void)
@@ -71,16 +71,16 @@ static int cup(void)
 }
 
 #define FETCH_OPTIONS(OPT) \
-	OPT(OPT_FETCH_built_after,	APK_OPT_ARG "built-after") \
-	OPT(OPT_FETCH_link,		APK_OPT_SH("l") "link") \
-	OPT(OPT_FETCH_recursive,	APK_OPT_SH("R") "recursive") \
-	OPT(OPT_FETCH_output,		APK_OPT_ARG APK_OPT_SH("o") "output") \
+	OPT(OPT_FETCH_built_after,	PS4_OPT_ARG "built-after") \
+	OPT(OPT_FETCH_link,		PS4_OPT_SH("l") "link") \
+	OPT(OPT_FETCH_recursive,	PS4_OPT_SH("R") "recursive") \
+	OPT(OPT_FETCH_output,		PS4_OPT_ARG PS4_OPT_SH("o") "output") \
 	OPT(OPT_FETCH_simulate,		"simulate") \
-	OPT(OPT_FETCH_stdout,		APK_OPT_SH("s") "stdout") \
+	OPT(OPT_FETCH_stdout,		PS4_OPT_SH("s") "stdout") \
 	OPT(OPT_FETCH_url,		"url") \
-	OPT(OPT_FETCH_world,		APK_OPT_SH("w") "world") \
+	OPT(OPT_FETCH_world,		PS4_OPT_SH("w") "world") \
 
-APK_OPT_APPLET(option_desc, FETCH_OPTIONS);
+PS4_OPT_APPLET(option_desc, FETCH_OPTIONS);
 
 static time_t parse_time(const char *timestr)
 {
@@ -97,7 +97,7 @@ static time_t parse_time(const char *timestr)
 	return 0;
 }
 
-static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int option_parse_applet(void *ctx, struct ps4_ctx *ac, int opt, const char *optarg)
 {
 	struct fetch_ctx *fctx = (struct fetch_ctx *) ctx;
 
@@ -107,7 +107,7 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 		if (!fctx->built_after) return -EINVAL;
 		break;
 	case OPT_FETCH_simulate:
-		ac->flags |= APK_SIMULATE;
+		ac->flags |= PS4_SIMULATE;
 		break;
 	case OPT_FETCH_recursive:
 		fctx->flags |= FETCH_RECURSIVE;
@@ -126,7 +126,7 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 		break;
 	case OPT_FETCH_world:
 		fctx->flags |= FETCH_WORLD | FETCH_RECURSIVE;
-		ac->open_flags &= ~APK_OPENF_NO_WORLD;
+		ac->open_flags &= ~PS4_OPENF_NO_WORLD;
 		break;
 	default:
 		return -ENOTSUP;
@@ -134,7 +134,7 @@ static int option_parse_applet(void *ctx, struct apk_ctx *ac, int opt, const cha
 	return 0;
 }
 
-static const struct apk_option_group optgroup_applet = {
+static const struct ps4_option_group optgroup_applet = {
 	.desc = option_desc,
 	.parse = option_parse_applet,
 };
@@ -142,26 +142,26 @@ static const struct apk_option_group optgroup_applet = {
 static void progress_cb(void *pctx, size_t bytes_done)
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	apk_print_progress(&ctx->prog, ctx->done + bytes_done, ctx->total);
+	ps4_print_progress(&ctx->prog, ctx->done + bytes_done, ctx->total);
 }
 
-static int fetch_package(struct apk_database *db, const char *match, struct apk_package *pkg, void *pctx)
+static int fetch_package(struct ps4_database *db, const char *match, struct ps4_package *pkg, void *pctx)
 {
 	struct fetch_ctx *ctx = pctx;
-	struct apk_out *out = &db->ctx->out;
-	struct apk_istream *is;
-	struct apk_ostream *os;
-	struct apk_repository *repo;
-	struct apk_file_info fi;
+	struct ps4_out *out = &db->ctx->out;
+	struct ps4_istream *is;
+	struct ps4_ostream *os;
+	struct ps4_repository *repo;
+	struct ps4_file_info fi;
 	char url[PATH_MAX], filename[256];
 	int r, urlfd;
 
 	if (!pkg->marked)
 		return 0;
 
-	repo = apk_db_select_repo(db, pkg);
+	repo = ps4_db_select_repo(db, pkg);
 	if (repo == NULL) {
-		r = -APKE_PACKAGE_NOT_FOUND;
+		r = -PS4E_PACKAGE_NOT_FOUND;
 		goto err;
 	}
 
@@ -171,60 +171,60 @@ static int fetch_package(struct apk_database *db, const char *match, struct apk_
 	}
 
 	if (!(ctx->flags & FETCH_STDOUT)) {
-		if (apk_fileinfo_get(ctx->outdir_fd, filename, 0, &fi, &db->atoms) == 0 &&
+		if (ps4_fileinfo_get(ctx->outdir_fd, filename, 0, &fi, &db->atoms) == 0 &&
 		    fi.size == pkg->size)
 			return 0;
 	}
 
-	r = apk_repo_format_item(db, repo, pkg, &urlfd, url, sizeof(url));
+	r = ps4_repo_format_item(db, repo, pkg, &urlfd, url, sizeof(url));
 	if (r < 0) goto err;
 
 	if (ctx->flags & FETCH_URL)
-		apk_msg(out, "%s", url);
+		ps4_msg(out, "%s", url);
 	else
-		apk_msg(out, "Downloading " PKG_VER_FMT, PKG_VER_PRINTF(pkg));
+		ps4_msg(out, "Downloading " PKG_VER_FMT, PKG_VER_PRINTF(pkg));
 
-	if (db->ctx->flags & APK_SIMULATE)
+	if (db->ctx->flags & PS4_SIMULATE)
 		return 0;
 
 	if (ctx->flags & FETCH_STDOUT) {
-		os = apk_ostream_to_fd(STDOUT_FILENO);
+		os = ps4_ostream_to_fd(STDOUT_FILENO);
 	} else {
 		if ((ctx->flags & FETCH_LINK) && urlfd >= 0) {
-			const char *urlfile = apk_url_local_file(url);
+			const char *urlfile = ps4_url_local_file(url);
 			if (urlfile &&
 			    linkat(urlfd, urlfile, ctx->outdir_fd, filename, AT_SYMLINK_FOLLOW) == 0)
 				goto done;
 		}
-		os = apk_ostream_to_file(ctx->outdir_fd, filename, 0644);
+		os = ps4_ostream_to_file(ctx->outdir_fd, filename, 0644);
 		if (IS_ERR(os)) {
 			r = PTR_ERR(os);
 			goto err;
 		}
 	}
 
-	is = apk_istream_from_fd_url(urlfd, url, apk_db_url_since(db, 0));
+	is = ps4_istream_from_fd_url(urlfd, url, ps4_db_url_since(db, 0));
 	if (IS_ERR(is)) {
 		r = PTR_ERR(is);
 		goto err;
 	}
 
-	apk_stream_copy(is, os, pkg->size, progress_cb, ctx, 0);
-	apk_ostream_copy_meta(os, is);
-	apk_istream_close(is);
-	r = apk_ostream_close(os);
+	ps4_stream_copy(is, os, pkg->size, progress_cb, ctx, 0);
+	ps4_ostream_copy_meta(os, is);
+	ps4_istream_close(is);
+	r = ps4_ostream_close(os);
 	if (r) goto err;
 	goto done;
 
 err:
-	apk_err(out, PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), apk_error_str(r));
+	ps4_err(out, PKG_VER_FMT ": %s", PKG_VER_PRINTF(pkg), ps4_error_str(r));
 	ctx->errors++;
 done:
 	ctx->done += pkg->size;
 	return 0;
 }
 
-static void mark_package(struct fetch_ctx *ctx, struct apk_package *pkg)
+static void mark_package(struct fetch_ctx *ctx, struct ps4_package *pkg)
 {
 	if (pkg == NULL || pkg->marked)
 		return;
@@ -234,30 +234,30 @@ static void mark_package(struct fetch_ctx *ctx, struct apk_package *pkg)
 	pkg->marked = 1;
 }
 
-static void mark_error(struct fetch_ctx *ctx, const char *match, struct apk_name *name)
+static void mark_error(struct fetch_ctx *ctx, const char *match, struct ps4_name *name)
 {
-	struct apk_out *out = &ctx->db->ctx->out;
+	struct ps4_out *out = &ctx->db->ctx->out;
 
 	if (strchr(match, '*') != NULL)
 		return;
 
-	apk_msg(out, "%s: unable to select package (or its dependencies)", name ? name->name : match);
+	ps4_msg(out, "%s: unable to select package (or its dependencies)", name ? name->name : match);
 	ctx->errors++;
 }
 
-static void mark_dep_flags(struct fetch_ctx *ctx, struct apk_dependency *dep)
+static void mark_dep_flags(struct fetch_ctx *ctx, struct ps4_dependency *dep)
 {
 	dep->name->auto_select_virtual = 1;
-	apk_deps_add(&ctx->world, dep);
+	ps4_deps_add(&ctx->world, dep);
 }
 
-static int mark_name_flags(struct apk_database *db, const char *match, struct apk_name *name, void *pctx)
+static int mark_name_flags(struct ps4_database *db, const char *match, struct ps4_name *name, void *pctx)
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	struct apk_dependency dep = (struct apk_dependency) {
+	struct ps4_dependency dep = (struct ps4_dependency) {
 		.name = name,
-		.version = &apk_atom_null,
-		.op = APK_DEPMASK_ANY,
+		.version = &ps4_atom_null,
+		.op = PS4_DEPMASK_ANY,
 	};
 
 	if (!name) {
@@ -269,36 +269,36 @@ static int mark_name_flags(struct apk_database *db, const char *match, struct ap
 	return 0;
 }
 
-static void mark_names_recursive(struct apk_database *db, struct apk_string_array *args, void *pctx)
+static void mark_names_recursive(struct ps4_database *db, struct ps4_string_array *args, void *pctx)
 {
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	struct apk_changeset changeset = {};
-	struct apk_change *change;
+	struct ps4_changeset changeset = {};
+	struct ps4_change *change;
 	int r;
 
-	apk_change_array_init(&changeset.changes);
-	r = apk_solver_solve(db, APK_SOLVERF_IGNORE_CONFLICT, ctx->world, &changeset);
+	ps4_change_array_init(&changeset.changes);
+	r = ps4_solver_solve(db, PS4_SOLVERF_IGNORE_CONFLICT, ctx->world, &changeset);
 	if (r == 0) {
 		foreach_array_item(change, changeset.changes)
 			mark_package(ctx, change->new_pkg);
 	} else {
-		apk_solver_print_errors(db, &changeset, ctx->world);
+		ps4_solver_print_errors(db, &changeset, ctx->world);
 		ctx->errors++;
 	}
-	apk_change_array_free(&changeset.changes);
+	ps4_change_array_free(&changeset.changes);
 }
 
-static int mark_name(struct apk_database *db, const char *match, struct apk_name *name, void *ctx)
+static int mark_name(struct ps4_database *db, const char *match, struct ps4_name *name, void *ctx)
 {
-	struct apk_package *pkg = NULL;
-	struct apk_provider *p;
+	struct ps4_package *pkg = NULL;
+	struct ps4_provider *p;
 
 	if (!name) goto err;
 
 	foreach_array_item(p, name->providers) {
 		if (pkg == NULL ||
 		    (p->pkg->name == name && pkg->name != name) ||
-		    apk_version_compare(*p->version, *pkg->version) == APK_VERSION_GREATER)
+		    ps4_version_compare(*p->version, *pkg->version) == PS4_VERSION_GREATER)
 			pkg = p->pkg;
 	}
 
@@ -315,40 +315,40 @@ static int purge_package(void *pctx, int dirfd, const char *filename)
 {
 	char tmp[PATH_MAX];
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	struct apk_database *db = ctx->db;
-	struct apk_out *out = &db->ctx->out;
-	struct apk_provider *p0;
-	struct apk_name *name;
-	apk_blob_t b = APK_BLOB_STR(filename), bname, bver;
+	struct ps4_database *db = ctx->db;
+	struct ps4_out *out = &db->ctx->out;
+	struct ps4_provider *p0;
+	struct ps4_name *name;
+	ps4_blob_t b = PS4_BLOB_STR(filename), bname, bver;
 	size_t l;
 
-	if (apk_pkg_parse_name(b, &bname, &bver)) return 0;
-	name = apk_db_get_name(db, bname);
+	if (ps4_pkg_parse_name(b, &bname, &bver)) return 0;
+	name = ps4_db_get_name(db, bname);
 	if (!name) return 0;
 
 	foreach_array_item(p0, name->providers) {
 		if (p0->pkg->name != name) continue;
 		l = snprintf(tmp, sizeof tmp, PKG_FILE_FMT, PKG_FILE_PRINTF(p0->pkg));
 		if (l > sizeof tmp) continue;
-		if (apk_blob_compare(b, APK_BLOB_PTR_LEN(tmp, l)) != 0) continue;
+		if (ps4_blob_compare(b, PS4_BLOB_PTR_LEN(tmp, l)) != 0) continue;
 		if (p0->pkg->marked) return 0;
 		break;
 	}
 
-	apk_msg(out, "Purging %s", filename);
-	if (db->ctx->flags & APK_SIMULATE)
+	ps4_msg(out, "Purging %s", filename);
+	if (db->ctx->flags & PS4_SIMULATE)
 		return 0;
 
 	unlinkat(dirfd, filename, 0);
 	return 0;
 }
 
-static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int fetch_main(void *pctx, struct ps4_ctx *ac, struct ps4_string_array *args)
 {
-	struct apk_out *out = &ac->out;
-	struct apk_database *db = ac->db;
+	struct ps4_out *out = &ac->out;
+	struct ps4_database *db = ac->db;
 	struct fetch_ctx *ctx = (struct fetch_ctx *) pctx;
-	struct apk_dependency *dep;
+	struct ps4_dependency *dep;
 
 	ctx->db = db;
 	ctx->prog = db->ctx->progress;
@@ -360,43 +360,43 @@ static int fetch_main(void *pctx, struct apk_ctx *ac, struct apk_string_array *a
 	if (ctx->outdir_fd == 0)
 		ctx->outdir_fd = AT_FDCWD;
 
-	if ((apk_array_len(args) == 1) && (strcmp(args->item[0], "coffee") == 0)) {
+	if ((ps4_array_len(args) == 1) && (strcmp(args->item[0], "coffee") == 0)) {
 		if (db->ctx->force) return cup();
-		apk_msg(out, "Go and fetch your own coffee.");
+		ps4_msg(out, "Go and fetch your own coffee.");
 		return 0;
 	}
 
 	if (ctx->flags & FETCH_RECURSIVE) {
-		apk_dependency_array_init(&ctx->world);
+		ps4_dependency_array_init(&ctx->world);
 		foreach_array_item(dep, db->world)
 			mark_dep_flags(ctx, dep);
-		if (apk_array_len(args) != 0)
-			apk_db_foreach_matching_name(db, args, mark_name_flags, ctx);
+		if (ps4_array_len(args) != 0)
+			ps4_db_foreach_matching_name(db, args, mark_name_flags, ctx);
 		if (ctx->errors == 0)
 			mark_names_recursive(db, args, ctx);
-		apk_dependency_array_free(&ctx->world);
+		ps4_dependency_array_free(&ctx->world);
 	} else {
-		if (apk_array_len(args) != 0)
-			apk_db_foreach_matching_name(db, args, mark_name, ctx);
+		if (ps4_array_len(args) != 0)
+			ps4_db_foreach_matching_name(db, args, mark_name, ctx);
 	}
 	if (!ctx->errors)
-		apk_db_foreach_sorted_package(db, NULL, fetch_package, ctx);
+		ps4_db_foreach_sorted_package(db, NULL, fetch_package, ctx);
 
 	/* Remove packages not matching download spec from the output directory */
-	if (!ctx->errors && (db->ctx->flags & APK_PURGE) &&
+	if (!ctx->errors && (db->ctx->flags & PS4_PURGE) &&
 	    !(ctx->flags & FETCH_STDOUT) && ctx->outdir_fd > 0)
-		apk_dir_foreach_file(ctx->outdir_fd, purge_package, ctx);
+		ps4_dir_foreach_file(ctx->outdir_fd, purge_package, ctx);
 
 	return ctx->errors;
 }
 
-static struct apk_applet apk_fetch = {
+static struct ps4_applet ps4_fetch = {
 	.name = "fetch",
-	.open_flags = APK_OPENF_READ | APK_OPENF_NO_STATE | APK_OPENF_ALLOW_ARCH,
+	.open_flags = PS4_OPENF_READ | PS4_OPENF_NO_STATE | PS4_OPENF_ALLOW_ARCH,
 	.context_size = sizeof(struct fetch_ctx),
 	.optgroups = { &optgroup_global, &optgroup_source, &optgroup_applet },
 	.main = fetch_main,
 };
 
-APK_DEFINE_APPLET(apk_fetch);
+PS4_DEFINE_APPLET(ps4_fetch);
 

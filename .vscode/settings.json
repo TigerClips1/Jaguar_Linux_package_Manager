@@ -11,6 +11,7 @@
         "ps4_crypto.h": "c",
         "ps4_applet.h": "c",
         "stdio.h": "c",
-        "limits.h": "c"
+        "limits.h": "c",
+        "fcntl.h": "c"
     },
 }

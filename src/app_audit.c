@@ -1,4 +1,4 @@
-/* app_audit.c - Alpine Package Keeper (APK)
+/* app_audit.c - PS4linux package manager (PS4)
  *
  * Copyright (C) 2005-2008 Natanael Copa <n@tanael.org>
  * Copyright (C) 2008-2011 Timo Teräs <timo.teras@iki.fi>
@@ -15,9 +15,9 @@
 #include <fnmatch.h>
 #include <limits.h>
 #include <sys/stat.h>
-#include "apk_applet.h"
-#include "apk_database.h"
-#include "apk_print.h"
+#include "ps4_applet.h"
+#include "ps4_database.h"
+#include "ps4_print.h"
 
 enum {
 	MODE_BACKUP = 0,
@@ -26,7 +26,7 @@ enum {
 };
 
 struct audit_ctx {
-	struct apk_istream blob_istream;
+	struct ps4_istream blob_istream;
 	int verbosity;
 	unsigned mode : 2;
 	unsigned recursive : 1;
@@ -43,15 +43,15 @@ struct audit_ctx {
 	OPT(OPT_AUDIT_full,			"full") \
 	OPT(OPT_AUDIT_ignore_busybox_symlinks,	"ignore-busybox-symlinks") \
 	OPT(OPT_AUDIT_packages,			"packages") \
-	OPT(OPT_AUDIT_protected_paths,		APK_OPT_ARG "protected-paths") \
-	OPT(OPT_AUDIT_recursive,		APK_OPT_SH("r") "recursive") \
+	OPT(OPT_AUDIT_protected_paths,		PS4_OPT_ARG "protected-paths") \
+	OPT(OPT_AUDIT_recursive,		PS4_OPT_SH("r") "recursive") \
 	OPT(OPT_AUDIT_system,			"system")
 
-APK_OPT_APPLET(option_desc, AUDIT_OPTIONS);
+PS4_OPT_APPLET(option_desc, AUDIT_OPTIONS);
 
-static int protected_paths_istream(struct apk_ctx *ac, struct apk_istream *is)
+static int protected_paths_istream(struct ps4_ctx *ac, struct ps4_istream *is)
 {
-	if (ac->protected_paths) apk_istream_close(ac->protected_paths);
+	if (ac->protected_paths) ps4_istream_close(ac->protected_paths);
 	if (IS_ERR(is)) {
 		ac->protected_paths = NULL;
 		return PTR_ERR(is);
@@ -60,10 +60,10 @@ static int protected_paths_istream(struct apk_ctx *ac, struct apk_istream *is)
 	return 0;
 }
 
-static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, const char *optarg)
+static int option_parse_applet(void *applet_ctx, struct ps4_ctx *ac, int opt, const char *optarg)
 {
 	struct audit_ctx *actx = (struct audit_ctx *) applet_ctx;
-	struct apk_out *out = &ac->out;
+	struct ps4_out *out = &ac->out;
 	int r;
 
 	switch (opt) {
@@ -73,13 +73,13 @@ static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, co
 	case OPT_AUDIT_full:
 		actx->mode = MODE_FULL;
 		protected_paths_istream(ac,
-			apk_istream_from_blob(&actx->blob_istream,
-				APK_BLOB_STRLIT(
+			ps4_istream_from_blob(&actx->blob_istream,
+				PS4_BLOB_STRLIT(
 					"+etc\n"
 					"@etc/init.d\n"
 					"-dev\n"
 					"-home\n"
-					"-lib/apk\n"
+					"-lib/ps4\n"
 					"-lib/rc/cache\n"
 					"-proc\n"
 					"-root\n"
@@ -105,9 +105,9 @@ static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, co
 		actx->packages_only = 1;
 		break;
 	case OPT_AUDIT_protected_paths:
-		r = protected_paths_istream(ac, apk_istream_from_file(AT_FDCWD, optarg));
+		r = protected_paths_istream(ac, ps4_istream_from_file(AT_FDCWD, optarg));
 		if (r) {
-			apk_err(out, "unable to read protected path file: %s: %s", optarg, apk_error_str(r));
+			ps4_err(out, "unable to read protected path file: %s: %s", optarg, ps4_error_str(r));
 			return r;
 		}
 		break;
@@ -120,52 +120,52 @@ static int option_parse_applet(void *applet_ctx, struct apk_ctx *ac, int opt, co
 	return 0;
 }
 
-static const struct apk_option_group optgroup_applet = {
+static const struct ps4_option_group optgroup_applet = {
 	.desc = option_desc,
 	.parse = option_parse_applet,
 };
 
 struct audit_tree_ctx {
 	struct audit_ctx *actx;
-	struct apk_database *db;
-	struct apk_db_dir *dir;
+	struct ps4_database *db;
+	struct ps4_db_dir *dir;
 	size_t pathlen;
 	char path[PATH_MAX];
 };
 
 static int audit_file(struct audit_ctx *actx,
-		      struct apk_database *db,
-		      struct apk_db_file *dbf,
+		      struct ps4_database *db,
+		      struct ps4_db_file *dbf,
 		      int dirfd, const char *name,
-		      struct apk_file_info *fi)
+		      struct ps4_file_info *fi)
 {
-	int digest_type = APK_DIGEST_SHA256;
-	int xattr_type = APK_DIGEST_SHA1;
+	int digest_type = PS4_DIGEST_SHA256;
+	int xattr_type = PS4_DIGEST_SHA1;
 	int rv = 0;
 
 	if (dbf) {
 		digest_type = dbf->digest_alg;
-		xattr_type = apk_digest_alg_by_len(dbf->acl->xattr_hash_len);
+		xattr_type = ps4_digest_alg_by_len(dbf->acl->xattr_hash_len);
 	} else {
 		if (!actx->details) return 'A';
 	}
 
-	if (apk_fileinfo_get(dirfd, name,
-				APK_FI_NOFOLLOW |
-				APK_FI_XATTR_DIGEST(xattr_type ?: APK_DIGEST_SHA1) |
-				APK_FI_DIGEST(digest_type),
+	if (ps4_fileinfo_get(dirfd, name,
+				PS4_FI_NOFOLLOW |
+				PS4_FI_XATTR_DIGEST(xattr_type ?: PS4_DIGEST_SHA1) |
+				PS4_FI_DIGEST(digest_type),
 				fi, &db->atoms) != 0)
 		return 'e';
 
 	if (!dbf) return 'A';
 
-	if (dbf->digest_alg != APK_DIGEST_NONE &&
-	    apk_digest_cmp_blob(&fi->digest, dbf->digest_alg, apk_dbf_digest_blob(dbf)) != 0)
+	if (dbf->digest_alg != PS4_DIGEST_NONE &&
+	    ps4_digest_cmp_blob(&fi->digest, dbf->digest_alg, ps4_dbf_digest_blob(dbf)) != 0)
 		rv = 'U';
 	else if (!S_ISLNK(fi->mode) && !dbf->diri->pkg->ipkg->broken_xattr &&
-		 apk_digest_cmp_blob(&fi->xattr_digest, xattr_type, apk_acl_digest_blob(dbf->acl)) != 0)
+		 ps4_digest_cmp_blob(&fi->xattr_digest, xattr_type, ps4_acl_digest_blob(dbf->acl)) != 0)
 		rv = 'x';
-	else if (S_ISLNK(fi->mode) && dbf->digest_alg == APK_DIGEST_NONE)
+	else if (S_ISLNK(fi->mode) && dbf->digest_alg == PS4_DIGEST_NONE)
 		rv = 'U';
 	else if (actx->check_permissions) {
 		if ((fi->mode & 07777) != (dbf->acl->mode & 07777))
@@ -178,16 +178,16 @@ static int audit_file(struct audit_ctx *actx,
 }
 
 static int audit_directory(struct audit_ctx *actx,
-			   struct apk_database *db,
-			   struct apk_db_dir *dbd,
-			   struct apk_file_info *fi)
+			   struct ps4_database *db,
+			   struct ps4_db_dir *dbd,
+			   struct ps4_file_info *fi)
 {
 	if (dbd != NULL) dbd->modified = 1;
 
 	if (dbd == NULL || dbd->refs == 1)
 		return actx->recursive ? 'd' : 'D';
 
-	struct apk_db_acl *acl = dbd->owner->acl;
+	struct ps4_db_acl *acl = dbd->owner->acl;
 	if (actx->check_permissions && dbd->modified) {
 		if ((fi->mode & 07777) != (acl->mode & 07777))
 			return 'm';
@@ -198,24 +198,24 @@ static int audit_directory(struct audit_ctx *actx,
 	return 0;
 }
 
-static const char *format_checksum(const apk_blob_t csum, apk_blob_t b)
+static const char *format_checksum(const ps4_blob_t csum, ps4_blob_t b)
 {
 	const char *ret = b.ptr;
 	if (csum.len == 0) return "";
-	apk_blob_push_blob(&b, APK_BLOB_STR(" hash="));
-	apk_blob_push_hexdump(&b, csum);
-	apk_blob_push_blob(&b, APK_BLOB_PTR_LEN("", 1));
+	ps4_blob_push_blob(&b, PS4_BLOB_STR(" hash="));
+	ps4_blob_push_hexdump(&b, csum);
+	ps4_blob_push_blob(&b, PS4_BLOB_PTR_LEN("", 1));
 	return ret;
 }
 
 static void report_audit(struct audit_ctx *actx,
-			 char reason, apk_blob_t bfull,
-			 struct apk_db_dir *dir,
-			 struct apk_db_file *file,
-			 struct apk_file_info *fi)
+			 char reason, ps4_blob_t bfull,
+			 struct ps4_db_dir *dir,
+			 struct ps4_db_file *file,
+			 struct ps4_file_info *fi)
 {
-	struct apk_package *pkg = file ? file->diri->pkg : NULL;
-	char csum_buf[8+2*APK_DIGEST_LENGTH_MAX];
+	struct ps4_package *pkg = file ? file->diri->pkg : NULL;
+	char csum_buf[8+2*PS4_DIGEST_LENGTH_MAX];
 	int verbosity = actx->verbosity;
 
 	if (!reason) return;
@@ -231,23 +231,23 @@ static void report_audit(struct audit_ctx *actx,
 		printf(BLOB_FMT "\n", BLOB_PRINTF(bfull));
 	} else {
 		if (actx->details) {
-			struct apk_db_acl *acl = NULL;
+			struct ps4_db_acl *acl = NULL;
 			if (file) acl = file->acl;
 			else if (dir && reason != 'D' && reason != 'd') acl = dir->owner->acl;
 			if (acl) printf("- mode=%o uid=%d gid=%d%s\n",
 				acl->mode & 07777, acl->uid, acl->gid,
-				file ? format_checksum(apk_dbf_digest_blob(file), APK_BLOB_BUF(csum_buf)) : "");
+				file ? format_checksum(ps4_dbf_digest_blob(file), PS4_BLOB_BUF(csum_buf)) : "");
 			if (fi) printf("+ mode=%o uid=%d gid=%d%s\n",
 				fi->mode & 07777, fi->uid, fi->gid,
-				format_checksum(APK_DIGEST_BLOB(fi->digest), APK_BLOB_BUF(csum_buf)));
+				format_checksum(PS4_DIGEST_BLOB(fi->digest), PS4_BLOB_BUF(csum_buf)));
 		}
 		printf("%c " BLOB_FMT "\n", reason, BLOB_PRINTF(bfull));
 	}
 }
 
-static int determine_file_protect_mode(struct apk_db_dir *dir, const char *name)
+static int determine_file_protect_mode(struct ps4_db_dir *dir, const char *name)
 {
-	struct apk_protected_path *ppath;
+	struct ps4_protected_path *ppath;
 	int protect_mode = dir->protect_mode;
 
 	/* inherit file's protection mask */
@@ -265,24 +265,24 @@ static int determine_file_protect_mode(struct apk_db_dir *dir, const char *name)
 static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
 {
 	struct audit_tree_ctx *atctx = (struct audit_tree_ctx *) ctx;
-	apk_blob_t bdir = APK_BLOB_PTR_LEN(atctx->path, atctx->pathlen);
-	apk_blob_t bent = APK_BLOB_STR(name);
-	apk_blob_t bfull;
+	ps4_blob_t bdir = PS4_BLOB_PTR_LEN(atctx->path, atctx->pathlen);
+	ps4_blob_t bent = PS4_BLOB_STR(name);
+	ps4_blob_t bfull;
 	struct audit_ctx *actx = atctx->actx;
-	struct apk_database *db = atctx->db;
-	struct apk_db_dir *dir = atctx->dir, *child = NULL;
-	struct apk_db_file *dbf;
-	struct apk_file_info fi;
+	struct ps4_database *db = atctx->db;
+	struct ps4_db_dir *dir = atctx->dir, *child = NULL;
+	struct ps4_db_file *dbf;
+	struct ps4_file_info fi;
 	int reason = 0;
 
 	if (bdir.len + bent.len + 1 >= sizeof(atctx->path)) return 0;
 
 	memcpy(&atctx->path[atctx->pathlen], bent.ptr, bent.len);
 	atctx->pathlen += bent.len;
-	bfull = APK_BLOB_PTR_LEN(atctx->path, atctx->pathlen);
+	bfull = PS4_BLOB_PTR_LEN(atctx->path, atctx->pathlen);
 
-	if (apk_fileinfo_get(dirfd, name, APK_FI_NOFOLLOW, &fi, &db->atoms) < 0) {
-		dbf = apk_db_file_query(db, bdir, bent);
+	if (ps4_fileinfo_get(dirfd, name, PS4_FI_NOFOLLOW, &fi, &db->atoms) < 0) {
+		dbf = ps4_db_file_query(db, bdir, bent);
 		if (dbf) dbf->audited = 1;
 		report_audit(actx, 'e', bfull, NULL, dbf, NULL);
 		goto done;
@@ -293,20 +293,20 @@ static int audit_directory_tree_item(void *ctx, int dirfd, const char *name)
 
 		switch (actx->mode) {
 		case MODE_BACKUP:
-			child = apk_db_dir_get(db, bfull);
+			child = ps4_db_dir_get(db, bfull);
 			if (!child->has_protected_children)
 				recurse = FALSE;
-			if (apk_protect_mode_none(child->protect_mode))
+			if (ps4_protect_mode_none(child->protect_mode))
 				goto recurse_check;
 			break;
 		case MODE_SYSTEM:
-			child = apk_db_dir_query(db, bfull);
+			child = ps4_db_dir_query(db, bfull);
 			if (child == NULL) goto done;
-			child = apk_db_dir_ref(child);
+			child = ps4_db_dir_ref(child);
 			break;
 		case MODE_FULL:
-			child = apk_db_dir_get(db, bfull);
-			if (child->protect_mode == APK_PROTECT_NONE) break;
+			child = ps4_db_dir_get(db, bfull);
+			if (child->protect_mode == PS4_PROTECT_NONE) break;
 			goto recurse_check;
 		}
 
@@ -318,7 +318,7 @@ recurse_check:
 		report_audit(actx, reason, bfull, child, NULL, &fi);
 		if (reason != 'D' && recurse) {
 			atctx->dir = child;
-			apk_dir_foreach_file(
+			ps4_dir_foreach_file(
 				openat(dirfd, name, O_RDONLY|O_CLOEXEC),
 				audit_directory_tree_item, atctx);
 			atctx->dir = dir;
@@ -328,43 +328,43 @@ recurse_check:
 	} else {
 		int protect_mode = determine_file_protect_mode(dir, name);
 
-		dbf = apk_db_file_query(db, bdir, bent);
+		dbf = ps4_db_file_query(db, bdir, bent);
 		if (dbf) dbf->audited = 1;
 
 		switch (actx->mode) {
 		case MODE_FULL:
 			switch (protect_mode) {
-			case APK_PROTECT_NONE:
+			case PS4_PROTECT_NONE:
 				break;
-			case APK_PROTECT_SYMLINKS_ONLY:
+			case PS4_PROTECT_SYMLINKS_ONLY:
 				if (S_ISLNK(fi.mode)) goto done;
 				break;
-			case APK_PROTECT_IGNORE:
-			case APK_PROTECT_ALL:
-			case APK_PROTECT_CHANGED:
+			case PS4_PROTECT_IGNORE:
+			case PS4_PROTECT_ALL:
+			case PS4_PROTECT_CHANGED:
 				goto done;
 			}
 			break;
 		case MODE_BACKUP:
 			switch (protect_mode) {
-			case APK_PROTECT_NONE:
-			case APK_PROTECT_IGNORE:
+			case PS4_PROTECT_NONE:
+			case PS4_PROTECT_IGNORE:
 				goto done;
-			case APK_PROTECT_CHANGED:
+			case PS4_PROTECT_CHANGED:
 				break;
-			case APK_PROTECT_SYMLINKS_ONLY:
+			case PS4_PROTECT_SYMLINKS_ONLY:
 				if (!S_ISLNK(fi.mode)) goto done;
 				break;
-			case APK_PROTECT_ALL:
+			case PS4_PROTECT_ALL:
 				reason = 'A';
 				break;
 			}
 			if ((!dbf || reason == 'A') &&
-			    apk_blob_ends_with(bent, APK_BLOB_STR(".apk-new")))
+			    ps4_blob_ends_with(bent, PS4_BLOB_STR(".ps4-new")))
 				goto done;
 			break;
 		case MODE_SYSTEM:
-			if (!dbf || !apk_protect_mode_none(protect_mode)) goto done;
+			if (!dbf || !ps4_protect_mode_none(protect_mode)) goto done;
 			break;
 		}
 
@@ -385,7 +385,7 @@ recurse_check:
 
 done:
 	if (child)
-		apk_db_dir_unref(db, child, FALSE);
+		ps4_db_dir_unref(db, child, FALSE);
 
 	atctx->pathlen -= bent.len;
 	return 0;
@@ -393,26 +393,26 @@ done:
 
 static int audit_directory_tree(struct audit_tree_ctx *atctx, int dirfd)
 {
-	apk_blob_t path;
+	ps4_blob_t path;
 	int r;
 
-	path = APK_BLOB_PTR_LEN(atctx->path, atctx->pathlen);
+	path = PS4_BLOB_PTR_LEN(atctx->path, atctx->pathlen);
 	if (path.len && path.ptr[path.len-1] == '/')
 		path.len--;
 
-	atctx->dir = apk_db_dir_get(atctx->db, path);
+	atctx->dir = ps4_db_dir_get(atctx->db, path);
 	atctx->dir->modified = 1;
-	r = apk_dir_foreach_file(dirfd, audit_directory_tree_item, atctx);
-	apk_db_dir_unref(atctx->db, atctx->dir, FALSE);
+	r = ps4_dir_foreach_file(dirfd, audit_directory_tree_item, atctx);
+	ps4_db_dir_unref(atctx->db, atctx->dir, FALSE);
 
 	return r;
 }
 
-static int audit_missing_files(apk_hash_item item, void *pctx)
+static int audit_missing_files(ps4_hash_item item, void *pctx)
 {
 	struct audit_ctx *actx = pctx;
-	struct apk_db_file *file = item;
-	struct apk_db_dir *dir;
+	struct ps4_db_file *file = item;
+	struct ps4_db_dir *dir;
 	char path[PATH_MAX];
 	int len;
 
@@ -420,40 +420,40 @@ static int audit_missing_files(apk_hash_item item, void *pctx)
 
 	dir = file->diri->dir;
 	if (!dir->modified) return 0;
-	if (determine_file_protect_mode(dir, file->name) == APK_PROTECT_IGNORE) return 0;
+	if (determine_file_protect_mode(dir, file->name) == PS4_PROTECT_IGNORE) return 0;
 
 	len = snprintf(path, sizeof(path), DIR_FILE_FMT, DIR_FILE_PRINTF(dir, file));
-	report_audit(actx, 'X', APK_BLOB_PTR_LEN(path, len), NULL, file, NULL);
+	report_audit(actx, 'X', PS4_BLOB_PTR_LEN(path, len), NULL, file, NULL);
 	return 0;
 }
 
-static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *args)
+static int audit_main(void *ctx, struct ps4_ctx *ac, struct ps4_string_array *args)
 {
-	struct apk_out *out = &ac->out;
-	struct apk_database *db = ac->db;
+	struct ps4_out *out = &ac->out;
+	struct ps4_database *db = ac->db;
 	struct audit_tree_ctx atctx;
 	struct audit_ctx *actx = (struct audit_ctx *) ctx;
 	char **parg, *arg;
 	int r = 0;
 
 	if (db->usermode) {
-		apk_err(out, "audit does not support usermode!");
+		ps4_err(out, "audit does not support usermode!");
 		return -ENOSYS;
 	}
 
-	actx->verbosity = apk_out_verbosity(&db->ctx->out);
+	actx->verbosity = ps4_out_verbosity(&db->ctx->out);
 	atctx.db = db;
 	atctx.actx = actx;
 	atctx.pathlen = 0;
 	atctx.path[0] = 0;
 
-	if (apk_array_len(args) == 0) {
+	if (ps4_array_len(args) == 0) {
 		r |= audit_directory_tree(&atctx, dup(db->root_fd));
 	} else {
 		foreach_array_item(parg, args) {
 			arg = *parg;
 			if (arg[0] != '/') {
-				apk_warn(out, "%s: relative path skipped.", arg);
+				ps4_warn(out, "%s: relative path skipped.", arg);
 				continue;
 			}
 			arg++;
@@ -466,18 +466,18 @@ static int audit_main(void *ctx, struct apk_ctx *ac, struct apk_string_array *ar
 		}
 	}
 	if (actx->mode == MODE_SYSTEM || actx->mode == MODE_FULL)
-		apk_hash_foreach(&db->installed.files, audit_missing_files, ctx);
+		ps4_hash_foreach(&db->installed.files, audit_missing_files, ctx);
 
 	return r;
 }
 
-static struct apk_applet apk_audit = {
+static struct ps4_applet ps4_audit = {
 	.name = "audit",
-	.open_flags = APK_OPENF_READ|APK_OPENF_NO_SCRIPTS|APK_OPENF_NO_REPOS,
+	.open_flags = PS4_OPENF_READ|PS4_OPENF_NO_SCRIPTS|PS4_OPENF_NO_REPOS,
 	.context_size = sizeof(struct audit_ctx),
 	.optgroups = { &optgroup_global, &optgroup_applet },
 	.main = audit_main,
 };
 
-APK_DEFINE_APPLET(apk_audit);
+PS4_DEFINE_APPLET(ps4_audit);
 
