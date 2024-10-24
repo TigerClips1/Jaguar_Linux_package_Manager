@@ -1,41 +1,41 @@
 #include <errno.h>
 #include <inttypes.h>
 #include "adb.h"
-#include "apk_adb.h"
-#include "apk_print.h"
-#include "apk_version.h"
-#include "apk_package.h"
-#include "apk_ctype.h"
+#include "ps4_adb.h"
+#include "ps4_print.h"
+#include "ps4_version.h"
+#include "ps4_package.h"
+#include "ps4_ctype.h"
 
 /* Few helpers to map old database to new one */
 
-int apk_dep_split(apk_blob_t *b, apk_blob_t *bdep)
+int ps4_dep_split(ps4_blob_t *b, ps4_blob_t *bdep)
 {
 	if (b->len == 0) return 0;
 	// skip all separator characters
-	apk_blob_spn(*b, APK_CTYPE_DEPENDENCY_SEPARATOR, NULL, b);
+	ps4_blob_spn(*b, PS4_CTYPE_DEPENDENCY_SEPARATOR, NULL, b);
 	// split the dependency string
-	apk_blob_cspn(*b, APK_CTYPE_DEPENDENCY_SEPARATOR, bdep, b);
+	ps4_blob_cspn(*b, PS4_CTYPE_DEPENDENCY_SEPARATOR, bdep, b);
 	return bdep->len != 0;
 }
 
-adb_val_t adb_wo_pkginfo(struct adb_obj *obj, unsigned int f, apk_blob_t val)
+adb_val_t adb_wo_pkginfo(struct adb_obj *obj, unsigned int f, ps4_blob_t val)
 {
-	struct apk_digest digest;
+	struct ps4_digest digest;
 	char buf[20];
-	adb_val_t v = ADB_ERROR(APKE_ADB_PACKAGE_FORMAT);
+	adb_val_t v = ADB_ERROR(PS4E_ADB_PACKAGE_FORMAT);
 
 	/* FIXME: get rid of this function, and handle the conversion via schema? */
 	switch (f) {
 	case ADBI_PI_HASHES:
 		if (!val.ptr || val.len < 4) break;
-		apk_blob_pull_digest(&val, &digest);
-		v = adb_w_blob(obj->db, APK_DIGEST_BLOB(digest));
+		ps4_blob_pull_digest(&val, &digest);
+		v = adb_w_blob(obj->db, PS4_DIGEST_BLOB(digest));
 		break;
 	case ADBI_PI_REPO_COMMIT:
 		if (val.len < 40) break;
-		apk_blob_pull_hexdump(&val, APK_BLOB_BUF(buf));
-		if (val.ptr) v = adb_w_blob(obj->db, APK_BLOB_BUF(buf));
+		ps4_blob_pull_hexdump(&val, PS4_BLOB_BUF(buf));
+		if (val.ptr) v = adb_w_blob(obj->db, PS4_BLOB_BUF(buf));
 		break;
 	default:
 		return adb_wo_val_fromstring(obj, f, val);
@@ -74,19 +74,19 @@ unsigned int adb_pkg_field_index(char f)
 
 /* Schema */
 
-static apk_blob_t string_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
+static ps4_blob_t string_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
 	return adb_r_blob(db, val);
 }
 
-static adb_val_t string_fromstring(struct adb *db, apk_blob_t val)
+static adb_val_t string_fromstring(struct adb *db, ps4_blob_t val)
 {
 	return adb_w_blob(db, val);
 }
 
 static int string_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2)
 {
-	return apk_blob_sort(adb_r_blob(db1, v1), adb_r_blob(db2, v2));
+	return ps4_blob_sort(adb_r_blob(db1, v1), adb_r_blob(db2, v2));
 }
 
 static struct adb_scalar_schema scalar_string = {
@@ -110,35 +110,35 @@ const struct adb_object_schema schema_string_array = {
 	.fields = ADB_ARRAY_ITEM(scalar_string),
 };
 
-static apk_blob_t xattr_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
+static ps4_blob_t xattr_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
-	apk_blob_t b = adb_r_blob(db, val), to = APK_BLOB_PTR_LEN(buf, bufsz), k, v;
+	ps4_blob_t b = adb_r_blob(db, val), to = PS4_BLOB_PTR_LEN(buf, bufsz), k, v;
 
-	if (APK_BLOB_IS_NULL(b)) return b;
-	if (!apk_blob_split(b, APK_BLOB_BUF(""), &k, &v)) return APK_BLOB_NULL;
+	if (PS4_BLOB_IS_NULL(b)) return b;
+	if (!ps4_blob_split(b, PS4_BLOB_BUF(""), &k, &v)) return PS4_BLOB_NULL;
 
-	apk_blob_push_blob(&to, k);
-	apk_blob_push_blob(&to, APK_BLOB_PTR_LEN("=", 1));
-	apk_blob_push_hexdump(&to, v);
-	if (!APK_BLOB_IS_NULL(to))
-		return APK_BLOB_PTR_PTR(buf, to.ptr-1);
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, BLOB_FMT "=(%d bytes)",
+	ps4_blob_push_blob(&to, k);
+	ps4_blob_push_blob(&to, PS4_BLOB_PTR_LEN("=", 1));
+	ps4_blob_push_hexdump(&to, v);
+	if (!ps4_BLOB_IS_NULL(to))
+		return PS4_BLOB_PTR_PTR(buf, to.ptr-1);
+	return PS4_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, BLOB_FMT "=(%d bytes)",
 		BLOB_PRINTF(k), (int)v.len));
 }
 
-static adb_val_t xattr_fromstring(struct adb *db, apk_blob_t val)
+static adb_val_t xattr_fromstring(struct adb *db, ps4_blob_t val)
 {
 	char buf[256];
-	apk_blob_t b[2], hex;
+	ps4_blob_t b[2], hex;
 
-	if (!apk_blob_rsplit(val, '=', &b[0], &hex)) return ADB_ERROR(APKE_ADB_SCHEMA);
+	if (!ps4_blob_rsplit(val, '=', &b[0], &hex)) return ADB_ERROR(PS4E_ADB_SCHEMA);
 	b[0].len++;
 
 	if (hex.len & 1) return ADB_ERROR(EINVAL);
 	if (hex.len/2 > sizeof buf) return ADB_ERROR(E2BIG);
-	b[1] = APK_BLOB_PTR_LEN(buf, hex.len / 2);
-	apk_blob_pull_hexdump(&hex, b[1]);
-	if (APK_BLOB_IS_NULL(hex)) return ADB_ERROR(EINVAL);
+	b[1] = PS4_BLOB_PTR_LEN(buf, hex.len / 2);
+	ps4_blob_pull_hexdump(&hex, b[1]);
+	if (PS4_BLOB_IS_NULL(hex)) return ADB_ERROR(EINVAL);
 
 	return adb_w_blob_vec(db, ARRAY_SIZE(b), b);
 }
@@ -157,15 +157,15 @@ const struct adb_object_schema schema_xattr_array = {
 	.fields = ADB_ARRAY_ITEM(schema_xattr),
 };
 
-static adb_val_t name_fromstring(struct adb *db, apk_blob_t val)
+static adb_val_t name_fromstring(struct adb *db, ps4_blob_t val)
 {
 	// Check invalid first character
 	if (val.len == 0 || !isascii(val.ptr[0]) || !isalnum(val.ptr[0])) goto fail;
 	// Shall consist of characters
-	if (apk_blob_spn(val, APK_CTYPE_PACKAGE_NAME, NULL, NULL)) goto fail;
+	if (ps4_blob_spn(val, PS4_CTYPE_PACKAGE_NAME, NULL, NULL)) goto fail;
 	return adb_w_blob(db, val);
 fail:
-	return ADB_ERROR(APKE_PKGNAME_FORMAT);
+	return ADB_ERROR(PS4E_PKGNAME_FORMAT);
 }
 
 static struct adb_scalar_schema scalar_name = {
@@ -175,17 +175,17 @@ static struct adb_scalar_schema scalar_name = {
 	.compare = string_compare,
 };
 
-static adb_val_t version_fromstring(struct adb *db, apk_blob_t val)
+static adb_val_t version_fromstring(struct adb *db, ps4_blob_t val)
 {
-	if (!apk_version_validate(val)) return ADB_ERROR(APKE_PKGVERSION_FORMAT);
+	if (!ps4_version_validate(val)) return ADB_ERROR(PS4E_PKGVERSION_FORMAT);
 	return adb_w_blob(db, val);
 }
 
 static int version_compare(struct adb *db1, adb_val_t v1, struct adb *db2, adb_val_t v2)
 {
-	switch (apk_version_compare(adb_r_blob(db1, v1), adb_r_blob(db2, v2))) {
-	case APK_VERSION_LESS: return -1;
-	case APK_VERSION_GREATER: return 1;
+	switch (ps4_version_compare(adb_r_blob(db1, v1), adb_r_blob(db2, v2))) {
+	case PS4_VERSION_LESS: return -1;
+	case PS4_VERSION_GREATER: return 1;
 	default: return 0;
 	}
 }
@@ -197,29 +197,29 @@ static struct adb_scalar_schema scalar_version = {
 	.compare = version_compare,
 };
 
-static apk_blob_t hexblob_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
+static ps4_blob_t hexblob_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
-	apk_blob_t b = adb_r_blob(db, val), to = APK_BLOB_PTR_LEN(buf, bufsz);
+	ps4_blob_t b = adb_r_blob(db, val), to = PS4_BLOB_PTR_LEN(buf, bufsz);
 
-	if (APK_BLOB_IS_NULL(b)) return b;
+	if (PS4_BLOB_IS_NULL(b)) return b;
 
-	apk_blob_push_hexdump(&to, b);
-	if (!APK_BLOB_IS_NULL(to))
-		return APK_BLOB_PTR_PTR(buf, to.ptr-1);
+	ps4_blob_push_hexdump(&to, b);
+	if (!PS4_BLOB_IS_NULL(to))
+		return PS4_BLOB_PTR_PTR(buf, to.ptr-1);
 
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "(%ld bytes)", b.len));
+	return PS4_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "(%ld bytes)", b.len));
 }
 
-static adb_val_t hexblob_fromstring(struct adb *db, apk_blob_t val)
+static adb_val_t hexblob_fromstring(struct adb *db, ps4_blob_t val)
 {
 	char buf[256];
 
 	if (val.len & 1) return ADB_ERROR(EINVAL);
 	if (val.len/2 > sizeof buf) return ADB_ERROR(E2BIG);
 
-	apk_blob_t b = APK_BLOB_PTR_LEN(buf, val.len / 2);
-	apk_blob_pull_hexdump(&val, b);
-	if (APK_BLOB_IS_NULL(val))
+	ps4_blob_t b = PS4_BLOB_PTR_LEN(buf, val.len / 2);
+	ps4_blob_pull_hexdump(&val, b);
+	if (PS4_BLOB_IS_NULL(val))
 		return ADB_ERROR(EINVAL);
 
 	return adb_w_blob(db, b);
@@ -232,14 +232,14 @@ static struct adb_scalar_schema scalar_hexblob = {
 	.compare = string_compare,
 };
 
-static apk_blob_t int_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
+static ps4_blob_t int_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%" PRIu64, adb_r_int(db, val)));
+	return PS4_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%" PRIu64, adb_r_int(db, val)));
 }
 
-static adb_val_t int_fromstring(struct adb *db, apk_blob_t val)
+static adb_val_t int_fromstring(struct adb *db, ps4_blob_t val)
 {
-	uint32_t n = apk_blob_pull_uint(&val, 10);
+	uint32_t n = ps4_blob_pull_uint(&val, 10);
 	if (val.len) return ADB_ERROR(EINVAL);
 	return adb_w_int(db, n) ?: ADB_VAL_NULL;
 }
@@ -260,14 +260,14 @@ static struct adb_scalar_schema scalar_int = {
 	.compare = int_compare,
 };
 
-static apk_blob_t oct_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
+static ps4_blob_t oct_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%" PRIo64, adb_r_int(db, val)));
+	return PS4_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%" PRIo64, adb_r_int(db, val)));
 }
 
-static adb_val_t oct_fromstring(struct adb *db, apk_blob_t val)
+static adb_val_t oct_fromstring(struct adb *db, ps4_blob_t val)
 {
-	uint32_t n = apk_blob_pull_uint(&val, 8);
+	uint32_t n = ps4_blob_pull_uint(&val, 8);
 	if (val.len) return ADB_ERROR(EINVAL);
 	return adb_w_int(db, n) ?: ADB_VAL_NULL;
 }
@@ -279,23 +279,23 @@ static struct adb_scalar_schema scalar_oct = {
 	.compare = int_compare,
 };
 
-static apk_blob_t hsize_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
+static ps4_blob_t hsize_tostring(struct adb *db, adb_val_t val, char *buf, size_t bufsz)
 {
 	off_t v = adb_r_int(db, val);
-	const char *unit = apk_get_human_size(v, &v);
+	const char *unit = ps4_get_human_size(v, &v);
 
-	return APK_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%jd %s", (intmax_t)v, unit));
+	return PS4_BLOB_PTR_LEN(buf, snprintf(buf, bufsz, "%jd %s", (intmax_t)v, unit));
 }
 
-static adb_val_t hsize_fromstring(struct adb *db, apk_blob_t val)
+static adb_val_t hsize_fromstring(struct adb *db, ps4_blob_t val)
 {
-	apk_blob_t l, r;
+	ps4_blob_t l, r;
 
-	if (!apk_blob_split(val, APK_BLOB_STR(" "), &l, &r))
+	if (!ps4_blob_split(val, PS4_BLOB_STR(" "), &l, &r))
 		return int_fromstring(db, val);
 
-	uint64_t n = apk_blob_pull_uint(&l, 10);
-	int sz = apk_get_human_size_unit(r);
+	uint64_t n = ps4_blob_pull_uint(&l, 10);
+	int sz = ps4_get_human_size_unit(r);
 	n *= sz;
 	return adb_w_int(db, n);
 }
@@ -307,53 +307,53 @@ static struct adb_scalar_schema scalar_hsize = {
 	.compare = int_compare,
 };
 
-static apk_blob_t dependency_tostring(struct adb_obj *obj, char *buf, size_t bufsz)
+static ps4_blob_t dependency_tostring(struct adb_obj *obj, char *buf, size_t bufsz)
 {
-	apk_blob_t name, ver;
+	ps4_blob_t name, ver;
 	unsigned int op;
 
 	name = adb_ro_blob(obj, ADBI_DEP_NAME);
 	ver  = adb_ro_blob(obj, ADBI_DEP_VERSION);
-	op   = adb_ro_int(obj, ADBI_DEP_MATCH) ?: APK_VERSION_EQUAL;
+	op   = adb_ro_int(obj, ADBI_DEP_MATCH) ?: PS4_VERSION_EQUAL;
 
-	if (APK_BLOB_IS_NULL(name)) return APK_BLOB_NULL;
-	if (APK_BLOB_IS_NULL(ver)) {
-		if (op & APK_VERSION_CONFLICT)
-			return APK_BLOB_PTR_LEN(buf,
+	if (PS4_BLOB_IS_NULL(name)) return PS4_BLOB_NULL;
+	if (ps4_BLOB_IS_NULL(ver)) {
+		if (op & PS4_VERSION_CONFLICT)
+			return PS4_BLOB_PTR_LEN(buf,
 				snprintf(buf, bufsz, "!"BLOB_FMT,
 					BLOB_PRINTF(name)));
 		return name;
 	}
 
-	return APK_BLOB_PTR_LEN(buf,
+	return PS4_BLOB_PTR_LEN(buf,
 		snprintf(buf, bufsz, "%s"BLOB_FMT"%s"BLOB_FMT,
-			(op & APK_VERSION_CONFLICT) ? "!" : "",
+			(op & PS4_VERSION_CONFLICT) ? "!" : "",
 			BLOB_PRINTF(name),
-			apk_version_op_string(op),
+			ps4_version_op_string(op),
 			BLOB_PRINTF(ver)));
 }
 
-static int dependency_fromstring(struct adb_obj *obj, apk_blob_t bdep)
+static int dependency_fromstring(struct adb_obj *obj, ps4_blob_t bdep)
 {
-	apk_blob_t bname, bver;
+	ps4_blob_t bname, bver;
 	int op;
 
-	if (apk_dep_parse(bdep, &bname, &op, &bver) != 0) goto fail;
-	if ((op & APK_DEPMASK_CHECKSUM) != APK_DEPMASK_CHECKSUM &&
-	    !apk_version_validate(bver)) goto fail;
+	if (ps4_dep_parse(bdep, &bname, &op, &bver) != 0) goto fail;
+	if ((op & PS4_DEPMASK_CHECKSUM) != PS4_DEPMASK_CHECKSUM &&
+	    !ps4_version_validate(bver)) goto fail;
 
-	if (apk_blob_spn(bname, APK_CTYPE_DEPENDENCY_NAME, NULL, NULL)) goto fail;
+	if (ps4_blob_spn(bname, PS4_CTYPE_DEPENDENCY_NAME, NULL, NULL)) goto fail;
 
 	adb_wo_blob(obj, ADBI_DEP_NAME, bname);
-	if (op != APK_DEPMASK_ANY) {
+	if (op != PS4_DEPMASK_ANY) {
 		adb_wo_blob(obj, ADBI_DEP_VERSION, bver);
-		if (op != APK_VERSION_EQUAL)
+		if (op != PS4_VERSION_EQUAL)
 			adb_wo_int(obj, ADBI_DEP_MATCH, op);
 	}
 	return 0;
 
 fail:
-	return -APKE_DEPENDENCY_FORMAT;
+	return -PS4E_DEPENDENCY_FORMAT;
 }
 
 const struct adb_object_schema schema_dependency = {
@@ -369,14 +369,14 @@ const struct adb_object_schema schema_dependency = {
 	},
 };
 
-static int dependencies_fromstring(struct adb_obj *obj, apk_blob_t b)
+static int dependencies_fromstring(struct adb_obj *obj, ps4_blob_t b)
 {
 	struct adb_obj dep;
-	apk_blob_t bdep;
+	ps4_blob_t bdep;
 
 	adb_wo_alloca(&dep, &schema_dependency, obj->db);
 
-	while (apk_dep_split(&b, &bdep)) {
+	while (ps4_dep_split(&b, &bdep)) {
 		int r = adb_wo_fromstring(&dep, bdep);
 		if (r) return r;
 		adb_wa_append_obj(obj, &dep);
@@ -537,32 +537,32 @@ const struct adb_object_schema schema_idb = {
 
 /* Command group for adb generation */
 
-#include "apk_applet.h"
+#include "ps4_applet.h"
 
 #define GENERATION_OPTIONS(OPT) \
-	OPT(OPT_GENERATION_compression,	APK_OPT_ARG APK_OPT_SH("c") "compression") \
-	OPT(OPT_GENERATION_sign_key,	APK_OPT_ARG "sign-key")
+	OPT(OPT_GENERATION_compression,	PS4_OPT_ARG PS4_OPT_SH("c") "compression") \
+	OPT(OPT_GENERATION_sign_key,	PS4_OPT_ARG "sign-key")
 
-APK_OPT_GROUP(options_generation, "Generation", GENERATION_OPTIONS);
+PS4_OPT_GROUP(options_generation, "Generation", GENERATION_OPTIONS);
 
-static int option_parse_generation(void *ctx, struct apk_ctx *ac, int optch, const char *optarg)
+static int option_parse_generation(void *ctx, struct ps4_ctx *ac, int optch, const char *optarg)
 {
-	struct apk_trust *trust = &ac->trust;
-	struct apk_out *out = &ac->out;
-	struct apk_trust_key *key;
+	struct ps4_trust *trust = &ac->trust;
+	struct ps4_out *out = &ac->out;
+	struct ps4_trust_key *key;
 
 	switch (optch) {
 	case OPT_GENERATION_compression:
 		if (adb_parse_compression(optarg, &ac->compspec) != 0) {
-			apk_err(out, "invalid compression type: %s", optarg);
+			ps4_err(out, "invalid compression type: %s", optarg);
 			return -EINVAL;
 		}
 		break;
 	case OPT_GENERATION_sign_key:
-		key = apk_trust_load_key(AT_FDCWD, optarg, 1);
+		key = ps4_trust_load_key(AT_FDCWD, optarg, 1);
 		if (IS_ERR(key)) {
-			apk_err(out, "Failed to load signing key: %s: %s",
-				optarg, apk_error_str(PTR_ERR(key)));
+			ps4_err(out, "Failed to load signing key: %s: %s",
+				optarg, ps4_error_str(PTR_ERR(key)));
 			return PTR_ERR(key);
 		}
 		list_add_tail(&key->key_node, &trust->private_key_list);
@@ -573,7 +573,7 @@ static int option_parse_generation(void *ctx, struct apk_ctx *ac, int optch, con
 	return 0;
 }
 
-const struct apk_option_group optgroup_generation = {
+const struct ps4_option_group optgroup_generation = {
 	.desc = options_generation,
 	.parse = option_parse_generation,
 };

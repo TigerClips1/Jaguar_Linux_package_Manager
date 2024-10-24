@@ -90,7 +90,7 @@ static int dump_object(struct adb_walk_ctx *ctx, const struct adb_object_schema 
 	if (schema) {
 		if (schema->tostring) {
 			b = schema->tostring(&o, tmp, sizeof tmp);
-			if (!ps4_BLOB_IS_NULL(b))
+			if (!PS4_BLOB_IS_NULL(b))
 				d->ops->scalar(d, b, 0);
 			return 0;
 		}
